@@ -1,6 +1,6 @@
 {
   "mode": "full",
-  "started_at": "2026-09-20T19:13:55.413453+00:00",
+  "started_at": "2026-09-20T19:23:38.535311+00:00",
   "checks": [
     {
       "name": "check_invariants",
@@ -20,10 +20,10 @@
     {
       "name": "pytest",
       "ok": true,
-      "detail": "........................................................................ [ 78%]\n....................                                                     [100%]\n=============================== warnings summary ===============================\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\n  \n    self._warn_or_fail_if_strict(f\"Unknown config option: {key}\\n\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n"
+      "detail": "........................................................................ [ 72%]\n...........................                                              [100%]\n=============================== warnings summary ===============================\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\n  \n    self._warn_or_fail_if_strict(f\"Unknown config option: {key}\\n\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n"
     }
   ],
   "all_ok": true,
-  "duration_s": 10.344074726104736,
-  "finished_at": "2026-09-20T19:14:05.757528+00:00"
+  "duration_s": 11.69541072845459,
+  "finished_at": "2026-09-20T19:23:50.230721+00:00"
 }

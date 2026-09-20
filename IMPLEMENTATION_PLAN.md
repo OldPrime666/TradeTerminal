@@ -120,8 +120,16 @@
 - [x] Verify --full 92 tests 4 checks OK (9 invariants SEC-09), source_matrix 18/18
 - Next: tag `phase-P08` commit, advance BUILD_STATE to P09
 
-## P09 Runtime — NOT_STARTED (next)
-- [ ] Supervisor 4 processes ingest/analyze/risk/paper, heartbeats ≤5s, backoff 1s→60s jitter crash-loop >5/10m FAILED, recovery idempotency
-- [ ] Tests `tests/unit/test_runtime_p09.py` 6+ tests, `verify --full` 98+ tests
+## P09 Runtime — CODE_VERIFIED 2026-09-20
+- [x] Supervisor `src/gcis/runtime/supervisor.py` P09 OPS-01..04,11 `PROCESSES [transport,analyzer,risk,paper]` 4, `BACKOFF_SCHEDULE [1,2,4,8,16,30,60]` + `next_backoff` jitter -20%..+20% (jitter), `is_crash_loop` >5/10m FAILED, `heartbeat_age_ms`/`should_heartbeat_be_fresh` ≤5s, `Supervisor` record_failure/record_success/check_heartbeats (HEALTHY/DEGRADED/DISCONNECTED) /recover_idempotent (EventOutbox) /handle_command (idempotency_key, KILL_SWITCH)
+- [x] Processes `src/gcis/runtime/processes.py` 4 stubs `run_transport/analyzer/risk/paper` each `update_worker_heartbeat` ≤5s
+- [x] Commands `src/gcis/runtime/commands.py` wrapper `submit_command`/`submit_kill_switch`
+- [x] Health already `src/gcis/runtime/health.py` `compute_health`/`update_worker_heartbeat` reused
+- [x] Tests `tests/unit/test_runtime_p09.py` 7 tests OPS-01..04,11: heartbeat 5s, backoff jitter, crash-loop 5/10m, recovery idempotent, command idempotent, 4 processes HEALTHY→DEGRADED→DISCONNECTED — all 7 passed (total 99)
+- [x] Verify --full 99 tests 4 checks OK (9 invariants SEC-09), source_matrix 18/18
+- Next: tag `phase-P09` commit, advance BUILD_STATE to P10
 
-## ... (P10-P99 per PHASES.md v3: P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)
+## P10 Minimal UI — M0 v0.1 — NOT_STARTED (next, last M0)
+- [ ] Read-only terminal `src/gcis/app/streamlit_app.py` banner UIX-04, health UIX-10, kill switch UIX-01 via commands, .bat wrappers, verify --post-install
+
+## ... (P11-P99 per PHASES.md v3: P11 full terminal, P12-P22 + P99)
