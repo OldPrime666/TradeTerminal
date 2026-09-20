@@ -1,6 +1,6 @@
 {
-  "implementation_version": "0.1.17",
-  "current_phase": "P17",
+  "implementation_version": "0.1.18",
+  "current_phase": "P18",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
@@ -19,7 +19,7 @@
     "P14": "CODE_VERIFIED",
     "P15": "CODE_VERIFIED",
     "P16": "CODE_VERIFIED",
-    "P17": "NOT_STARTED",
+    "P17": "CODE_VERIFIED",
     "P18": "NOT_STARTED",
     "P19": "NOT_STARTED",
     "P20": "NOT_STARTED",
@@ -152,9 +152,9 @@
     "DAT-03": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_universe.py::test_*_parse"
+        "tests/unit/test_dom_ccxt_p17.py::test_ccxt_twin_parity"
       ],
-      "evidence": "src/gcis/data/exchange/*"
+      "evidence": "src/gcis/data/exchange/ccxt_adapter.py parity vs native"
     },
     "DAT-15": {
       "status": "CODE_VERIFIED",
@@ -953,9 +953,9 @@
     "OPS-10": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_hardening2_p15.py::test_notifications_rate_limit_and_flush"
+        "tests/unit/test_dom_ccxt_p17.py::test_alerts_evaluation"
       ],
-      "evidence": "src/gcis/ops/notifications.py rate limit 10/min"
+      "evidence": "src/gcis/ops/alerts.py INGEST/BUNDLE/CANDLE"
     },
     "EXE-09": {
       "status": "CODE_VERIFIED",
@@ -984,6 +984,13 @@
         "tests/unit/test_scale_p16.py::test_orderbook_mid_spread_freshness_and_imbalance"
       ],
       "evidence": "src/gcis/market/orderbook.py stub"
+    },
+    "DAT-17": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_dom_ccxt_p17.py::test_depth_recorder_append_and_stats"
+      ],
+      "evidence": "src/gcis/data/recorder/depth.py var/depth 30d"
     }
   },
   "operator_decisions": {
@@ -1003,20 +1010,20 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T20:14:12.540380+00:00",
-    "log": "{\"mode\": \"post-install\", \"started_at\": \"2026-09-20T20:14:11.995895+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"live_candle_ingest\", \"ok\": false, \"detail\": \"unreachable (NO DATA): TLS/SSL connection has been closed (EOF) (_ssl.c:992)\"}], \"all_ok\": true, \"duration_s\": 0.5444867610931396, \"finished_at\": \"2026-09-20T20:14:12.540380+00:00\"}"
+    "timestamp": "2026-09-20T20:22:43.730893+00:00",
+    "log": "{\"mode\": \"post-install\", \"started_at\": \"2026-09-20T20:22:43.139583+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"live_candle_ingest\", \"ok\": false, \"detail\": \"unreachable (NO DATA): TLS/SSL connection has been closed (EOF) (_ssl.c:992)\"}], \"all_ok\": true, \"duration_s\": 0.5913145542144775, \"finished_at\": \"2026-09-20T20:22:43.730893+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P16 Scalability ARC-20 — prioritised scheduling + bundle budget + incremental + DOM stub",
+  "current_file_group": "P17 DOM & CCXT twin — ccxt_adapter + depth recorder DAT-17 + alerts OPS-10",
   "pending_tasks": [
-    "P17-P22 + P99 audit",
-    "P16 168 tests verified",
-    "P17 next: DOM + CCXT twin"
+    "P18-P22 + P99 audit",
+    "P17 176 tests verified",
+    "P18 next: Notifications live + Scalping + Live adapter + Futures"
   ],
   "next_actions": [
-    "Next: PYTHONPATH=src python -m pytest tests/unit/test_scale_p16.py -v  # 8 passed",
-    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 168 passed",
-    "Commit: git add -A && git commit -m 'P16 Scalability CODE_VERIFIED' && git push origin arena/01a0bfdc-tradeterminal",
-    "Next phase: P17 — DOM Depth + CCXT twin + Notifications"
+    "Next: PYTHONPATH=src python -m pytest tests/unit/test_dom_ccxt_p17.py -v  # 8 passed",
+    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 176 passed",
+    "Commit: git add -A && git commit -m 'P17 DOM & CCXT twin CODE_VERIFIED' && git push origin arena/01a0bfdc-tradeterminal",
+    "Next phase: P18 — Notifications live + Scalping + Live adapter"
   ]
 }
