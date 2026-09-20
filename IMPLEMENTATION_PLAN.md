@@ -46,7 +46,15 @@
 - [x] Verify: `verify --quick` + `verify --full` PASSED 32 tests (8 new history), `check_invariants` 9/9 OK, `source_matrix_check` 18/18 PASSED (CAP-04 bulk still ≥3 fallbacks)
 - Next: tag `phase-P02` commit, advance BUILD_STATE to P03
 
-## P03 Live ingest — NOT_STARTED
-- [ ] WS transport 2 conns, rotation <24h, gap detection, polling fallback, recorder (sharded ≤180 streams/conn)
+## P03 Live ingest — CODE_VERIFIED 2026-09-20
+- [x] Sharding: `src/gcis/data/transport/sharding.py` — `shard_streams(180)`, `build_klines_streams(s@kline_1m)`, `build_all_market_streams(bookTicker+markPrice+!forceOrder@arr)`, `build_focus_streams(depth@0ms+aggTrade)`, `plan_shards(symbols,focus)` → klines shards ceil(N/180) per ARC-20, summary
+- [x] WS client: `src/gcis/data/transport/ws_client.py::WSConnection` — combined stream URL `stream?streams=`, `should_rotate` 23h+15s overlap, `connect_and_serve` with `websockets` ping 180/600, state DISCONNECTED→CONNECTING→WEBSOCKET→RECOVERING, `backoff_schedule [1,2,4,8,16,30,60]`, `_serve_loop` JSON parse (combined stream `data` wrap), `on_message(ts_us)`, proactive `rotate<24h` close 1000
+- [x] Polling fallback: `src/gcis/data/transport/polling.py` — `poll_klines(venue,symbols,interval)` REST `klines` limit2, `normalize_timestamp_to_us`, 451/403 → [] no circumvention, `polling_loop_should_run(ws_state,5s)` only when not WEBSOCKET
+- [x] Gap: `src/gcis/data/transport/gap.py` — `detect_missing_intervals(sorted open_times, start,end, interval_us)` → missing intervals, `backfill_missing(gaps, max 1500)` via REST startTime, `should_trigger_backfill`
+- [x] Raw recorder: `src/gcis/data/recorder/store.py` — `RAW_ROOT var/raw`, `raw_path(venue/day/stream-hour.ndjson)` hourly shards, `append_raw(venue,stream,payload,ts_us)` NDJSON envelope `_received_at/venue/stream/payload`, `list_raw/purge_expired(14d)`, `compress_raw` zstd hook (optional)
+- [x] Manager: `src/gcis/data/transport/manager.py` — `WS_BASES` futures, `handle_kline_message` (WS kline `e/k/x` only closed `x=True` persisted, polling row `open_time` dict), `_persist_candle` (Decimal 38,18, high>=low check, unique (venue,symbol,tf,open_time) idempotent, `Candle` + `EventOutbox candle.closed entity_id venue:symbol:tf:open_time` + `ingest_rows_to_parquet` archive + `ProviderStatus CAP-03 data_age_s`), `TransportManager(venue,symbols,focus, max_per_conn 180, rotate 23h)` builds `plan_shards` → `WSConnection` per shard with raw recorder+handle, `health()` aggregates ws_state WEBSOCKET/DEGRADED/DISCONNECTED, `polling_tick` + `gap_tick` (detect missing via DB Candle query, backfill first gap) + `heartbeat_tick` (WorkerState transport), `run_forever` asyncio gather
+- [x] Tests: `tests/unit/test_transport.py` 8 tests — shard 400→3 shards, WS rotate & URL, gap 1 missing (00:02), polling should_run states, raw recorder tmp NDJSON, candle persist idempotent (WS kline true→1 candle+1 outbox, duplicate→still 1), manager plan 5 symbols →3 conns (klines/all_market/focus)
+- [x] Verify: `verify --full` PASSED 40 tests (8 new transport), `check_invariants` 9/9 OK (no while True in streamlit), `source_matrix` 18/18 (CAP-02 live 1m, CAP-03 REST, CAP-04 bulk still ≥3)
+- Next: tag `phase-P03` commit, advance BUILD_STATE to P04
 
 ## ... (P04-P99 per PHASES.md v3: P04 Market, P05 ICT, P06 Strategy, P07 Risk&Paper, P08 Backtest, P09 Runtime, P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)
