@@ -1,0 +1,101 @@
+[project]
+name = "globalcryptoictscanner"
+version = "0.1.0"
+description = "GLOBALCRYPTOICTSCANNER 2026 — local, free-resource, event-driven crypto ICT/SMC research platform"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name="GCIS Team"}]
+dependencies = [
+  "streamlit==1.39.1",
+  "plotly==5.24.1",
+  "pandas==2.2.3",
+  "numpy==1.26.4",
+  "scipy==1.14.1",
+  "scikit-learn==1.5.2",
+  "SQLAlchemy==2.0.36",
+  "alembic==1.14.1",
+  "psycopg[binary]==3.2.4",
+  "pydantic==2.10.6",
+  "pydantic-settings==2.7.0",
+  "PyYAML==6.0.2",
+  "httpx==0.27.2",
+  "websockets==13.1",
+  "tenacity==9.0.0",
+  "pyarrow==17.0.0",
+  "duckdb==1.1.3",
+  "zstandard==0.23.0",
+  "python-ulid==1.1.0",
+  "tzdata==2024.2",
+  "keyring==25.5.0",
+  "python-dateutil==2.9.0.post0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==8.3.4",
+  "pytest-asyncio==0.24.0",
+  "pytest-cov==6.0.0",
+  "hypothesis==6.123.2",
+  "ruff==0.8.4",
+  "mypy==1.13.0",
+  "bandit==1.8.3",
+  "pip-audit==2.7.3",
+  "import-linter==2.2",
+  "pandas-ta-classic==0.4.47",
+]
+
+[project.scripts]
+gcis = "gcis.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E","F","I","B","W","C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.importlinter]
+root_package = "gcis"
+
+[[tool.importlinter.contracts]]
+name = "Layering: app cannot import execution/risk internals"
+type = "forbidden"
+source_modules = ["gcis.app"]
+forbidden_modules = ["gcis.execution", "gcis.risk"]
+
+[[tool.importlinter.contracts]]
+name = "Domain must not import streamlit/network/db"
+type = "forbidden"
+source_modules = ["gcis.core", "gcis.market", "gcis.ict", "gcis.strategies", "gcis.signals", "gcis.risk", "gcis.backtest"]
+forbidden_modules = ["streamlit", "httpx", "websockets", "sqlalchemy"]
+
+[[tool.importlinter.contracts]]
+name = "Runtime must not import tests"
+type = "forbidden"
+source_modules = ["gcis"]
+forbidden_modules = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gcis"]

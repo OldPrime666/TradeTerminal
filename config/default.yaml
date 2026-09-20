@@ -1,0 +1,244 @@
+# GLOBALCRYPTOICTSCANNER 2026 — default.yaml (Part 12)
+# All thresholds are design defaults — not empirically validated unless census/validation says so.
+
+time:
+  internal_unit: microsecond_utc
+  clock_drift_warn_ms: 500
+  clock_drift_block_ms: 2000
+  drift_check_interval_s: 300
+
+freshness:
+  quote_stale_after_s: 5
+  quote_disconnected_after_s: 30
+  candle_stale_after_bars: 2
+  candle_grace_s: 5
+  provider_secondary_stale_after_s: 900
+
+transport:
+  ws_min_connections: 2
+  ws_rotate_before_h: 23
+  ws_rotation_overlap_s: 15
+  ws_reconnect_backoff_s: [1, 2, 4, 8, 16, 30, 60]
+  ws_max_streams_per_conn: 200
+  rest_rate_budget_fraction: 0.5
+  http_timeout_s: 10
+  http_retries: 3
+  polling_fallback_interval_s: 5
+  gap_backfill_max_bars: 1500
+
+universe:
+  quote_asset: USDT
+  symbols: [BTC, ETH, SOL, BNB, XRP, DOGE, ADA, AVAX, LINK, TON, SUI, PEPE]
+  require_status: TRADING
+
+timeframes: [1m, 5m, 15m, 1h, 4h, 1d]
+analysis_timeframes:
+  trigger: 5m
+  setup: 15m
+  bias: 1h
+  htf: [4h, 1d]
+
+retention:
+  candles_1m_days_pg: 400
+  candles_5m_plus: unlimited
+  parquet_archive: unlimited
+  raw_wire_frames_days: 14
+  quote_bars_days: 30
+  depth_snapshots_days: 30
+  system_metrics_days: 30
+  logs_days: 30
+  signals_and_outcomes: unlimited
+  disk_free_min_gb: 10
+
+backfill:
+  initial_history_days_1m: 90
+  initial_history_5m_plus_days: 730
+
+sessions:
+  asia: {tz: Asia/Tokyo, start: "09:00", end: "15:00"}
+  london: {tz: Europe/London, start: "08:00", end: "16:30"}
+  new_york: {tz: America/New_York, start: "08:30", end: "17:00"}
+  london_killzone: {tz: Europe/London, start: "07:00", end: "10:00"}
+  new_york_killzone: {tz: America/New_York, start: "07:00", end: "10:00"}
+  weekend: {tz: UTC, start: "Sat 00:00", end: "Sun 23:59:59"}
+require_session_for_entry: false
+
+indicators:
+  atr_period: 14
+  ema_periods: [9, 21, 50, 200]
+  rsi_period: 14
+  adx_period: 14
+  bb: {period: 20, std: 2.0}
+  vwap_anchor: utc_day
+  volume_ma_period: 20
+  efficiency_ratio_period: 20
+
+regime:
+  percentile_lookback_bars: 500
+  trend_up: {adx_min: 22, efficiency_ratio_min: 0.30, ema_stack: "ema21>ema50", ema_slope_bars: 10}
+  trend_down: {adx_min: 22, efficiency_ratio_min: 0.30, ema_stack: "ema21<ema50", ema_slope_bars: 10}
+  ranging: {adx_max: 18, efficiency_ratio_max: 0.25, bb_bandwidth_percentile_max: 50}
+  vol_low_atr_percentile_max: 25
+  vol_high_atr_percentile_min: 80
+  expansion: {atr_percentile_min: 70, bar_range_atr_min: 1.5}
+  contraction: {bb_bandwidth_percentile_max: 20}
+  news_shock: {return_zscore_min: 4.0, volume_ratio_min: 3.0, requires_confirmed_news_event: true}
+  uncertain_when_conflicting: true
+  min_history_bars: 300
+
+ict:
+  swing: {left: 3, right: 3, min_strength_atr: 0.5, min_separation_bars: 3}
+  structure: {break_on: close, min_break_atr: 0.10}
+  displacement: {body_to_range_min: 0.60, range_atr_min: 1.5, close_position_min: 0.70, min_consecutive: 1}
+  fvg: {min_size_atr: 0.15, min_size_ticks: 2, max_age_bars: 200, mitigation: "50pct_or_full"}
+  order_block: {displacement_within_bars: 3, require_bos: true, max_age_bars: 300, use_body_zone: true}
+  liquidity: {equal_level_tolerance_atr: 0.10, min_touches: 2, lookback_bars: 100, sweep: {penetration_min_atr: 0.05, reject_within_bars: 3, wick_based: true, require_displacement: true}}
+  breaker: {lookahead_bars: 50}
+  premium_discount: {ote_low: 0.62, ote_high: 0.79, require_discount_for_long: true, require_premium_for_short: true}
+  htf_ltf_conflict_policy: NO_TRADE
+
+strategy:
+  ict_a:
+    enabled: true
+    direction: long_only_spot
+    entry_zone: fvg_or_ob_retest
+    stop_buffer_atr: 0.25
+    tp1_r: 1.5
+    tp2_r: 3.0
+    tp1_close_fraction: 0.5
+    move_stop_to_be_after_tp1: true
+    max_holding_bars: {"5m": 96, "15m": 96}
+    min_net_rr_tp1: 1.2
+    min_net_rr_final: 2.0
+
+signal:
+  ttl_bars: {"5m": 12, "15m": 8, "1h": 6}
+  chase_limit_r: 0.30
+  dedup_window_bars: 6
+  outcome_tracker: {enabled: true, ambiguous_intrabar_policy: pessimistic}
+
+costs:
+  taker_fee_bps: 10
+  maker_fee_bps: 10
+  slippage_bps_base: 2
+  slippage_atr_fraction: 0.02
+  max_round_trip_cost_to_stop_ratio: 0.25
+
+paper:
+  starting_equity_usdt: 10000
+  quote_bar_ms: 250
+  latency_ms: 300
+  limit_fill_requires_trade_through_ticks: 1
+  partial_fills: true
+  enforce_exchange_filters: true
+  fill_model_version: "paper-conservative-1"
+
+execution:
+  policy_paper: AUTO
+  policy_live: SEMI_AUTO
+  shadow_record_for_outcomes: true
+  manual_entry_max_signal_age_s: 60
+
+risk:
+  risk_per_trade_pct: 0.25
+  max_daily_loss_pct: 1.5
+  max_trades_per_day: 6
+  max_concurrent_positions: 3
+  max_open_worst_case_risk_pct: 1.5
+  max_per_symbol_risk_pct: 0.5
+  max_per_strategy_risk_pct: 1.0
+  max_per_cluster_risk_pct: 1.0
+  max_drawdown_lock_pct: 6.0
+  max_consecutive_losses: 4
+  cooldown_after_loss_min: 30
+  cooldown_after_streak_min: 240
+  same_symbol_reentry_cooldown_min: 60
+  day_reset_utc: "00:00"
+  min_order_notional_policy: skip_if_below_min
+  sizing_buffer_bps: 5
+
+correlation:
+  static_groups: {majors: [BTC, ETH], l1: [SOL, AVAX, SUI, TON, ADA], memes: [DOGE, PEPE], exchange_token: [BNB], other: [XRP, LINK]}
+  dynamic: {enabled: true, lookback_days: 30, return_timeframe: 1h, link_abs_rho: 0.70, min_overlap_bars: 200, insufficient_data: treat_as_correlated}
+
+locks:
+  max_spread_bps: 15
+  max_spread_to_stop_ratio: 0.10
+  volatility_lock: {atr_percentile_min: 97, action: block_new_entries}
+  data_quality_lock: {block_on: [STALE, DISCONNECTED, INVALID, MARKET_DATA_DISCREPANCY, UNRESOLVED_GAP]}
+  news_lock: {source: macro_calendar, uses: news.macro_blackout_minutes}
+  execution_error_cooldown_min: 15
+
+kill_switch: {default_action: BLOCK_NEW_ENTRIES, close_positions_requires_separate_command: true}
+
+probability:
+  labeling: triple_barrier
+  tier_a: {estimator: empirical_bayes_beta_binomial, pooling: [strategy_regime_symbolgroup, strategy_regime, strategy, pooled], prior_strength_events: 20}
+  tier_b: {estimator: regularized_logistic, min_events_per_feature: 15, max_features: 12}
+  tier_c: {enabled: false, min_total_events: 2000}
+  validation: {method: purged_kfold, k: 5, embargo_bars: 12, single_use_oos_lock: true, oos_fraction: 0.2}
+  calibration: {default: sigmoid, isotonic_min_oos_events: 1000}
+  display_gate: {min_train_events_effective: 100, min_oos_events: 50, max_ci_halfwidth: 0.10, max_ece: 0.05, require_version_match: true}
+  ev: {lcb_percentile: 10, min_ev_lcb_r: 0.0}
+  drift: {window_events: 50, ece_degrade_threshold: 0.08}
+  required_for_execution: {paper: false, live: true}
+  census_thresholds: {tier_strategy_regime_min_events: 300, tier_strategy_min_events: 150, tier_pooled_min_events: 60}
+  experiments: {track_trials: true, deflated_sharpe: true}
+
+backtest:
+  default_fidelity: OHLC_APPROXIMATION
+  same_bar_tp_sl_policy: stop_first
+  annualization_days: 365
+  bootstrap_resamples: 5000
+  monte_carlo: {block_size: 10, runs: 5000}
+  walk_forward: {train_days: 180, test_days: 30, purge_bars: 24, embargo_bars: 12}
+  baselines:
+    random_entry: {draws: 200, match_on: [symbol, direction, timeframe, stop_atr, target_r, holding_limit, session_regime_distribution]}
+    buy_and_hold: {exposure_matched: true}
+    ema_cross: {fast: 9, slow: 21}
+    time_shift_placebo: {shift_bars: [24, 96, 288]}
+  significance: {alpha: 0.05, min_trades_for_verdict: 100}
+  data_quality_gate: {max_missing_bar_fraction: 0.001, block_on_unresolved_gap: true}
+
+discrepancy:
+  price_deviation_warn_bps: 30
+  price_deviation_flag_bps: 100
+  only_compare_when_both_fresher_than_s: 900
+  action_on_flag: MARKET_DATA_DISCREPANCY
+
+news:
+  macro_blackout_minutes: {before: 30, after: 30}
+  min_impact_for_veto: high
+  time_safety: available_at = max(published_at, detected_at)
+
+ui:
+  table_refresh_s: 2
+  chart_refresh_s: 5
+  chart_max_candles: 800
+  reduced_motion_default: false
+  show_top_unvalidated_candidate: true
+  bind_address: 127.0.0.1
+
+performance_budgets:
+  candle_close_to_signal_persisted_s: 3
+  ui_page_render_s: 2
+  ingest_to_persist_p95_ms: 250
+  memory_growth_mb_per_hour_max: 50
+
+setup_score:
+  weights: {htf_alignment: 20, liquidity_sweep_quality: 20, displacement_quality: 15, zone_quality: 15, regime_compat: 10, session_context: 5, volume_confirmation: 5, cost_efficiency: 10}
+  grades: {A: 85, B: 70, C: 55}
+
+app:
+  name: GLOBALCRYPTOICTSCANNER 2026
+  mode: PAPER
+  enable_live_trading: false
+
+database:
+  url: "sqlite:///var/gcis.db"
+  # For PostgreSQL: "postgresql+psycopg://gcis:gcis@localhost:5432/gcis"
+
+exchange:
+  binance_rest_base: "https://data-api.binance.vision"
+  binance_ws_base: "wss://data-stream.binance.vision"
+  use_microseconds: true

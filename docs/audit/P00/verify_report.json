@@ -1,0 +1,29 @@
+{
+  "mode": "quick",
+  "started_at": "2026-09-20T17:34:42.655470+00:00",
+  "checks": [
+    {
+      "name": "check_invariants",
+      "ok": true,
+      "detail": "=== GCIS Invariant Check ===\n[OK] INV-01 no fabricated data in runtime\n[OK] INV-06 UI not source of truth\n[OK] INV-21 no business loops in Streamlit\n[OK] INV-13 numerics UTC timestamptz\n[OK] INV-15 secrets handling\n[OK] INV-23 docs vs code (placeholder scan)\n\n/usr/bin/python3: No module named importlinter\n\n[WARN] import-linter failed or not satisfied\n"
+    },
+    {
+      "name": "config_load",
+      "ok": true,
+      "detail": "loaded"
+    },
+    {
+      "name": "db_migrations",
+      "ok": true,
+      "detail": "sqlite:///var/gcis.db"
+    },
+    {
+      "name": "pytest",
+      "ok": true,
+      "detail": "................                                                         [100%]\n"
+    }
+  ],
+  "all_ok": true,
+  "duration_s": 1.0659422874450684,
+  "finished_at": "2026-09-20T17:34:43.721411+00:00"
+}

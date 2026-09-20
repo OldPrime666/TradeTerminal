@@ -1,0 +1,23 @@
+# GCIS — ignore runtime data, secrets, caches
+var/
+logs/
+*.log
+*.db
+*.sqlite
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.local
+.idea/
+.vscode/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.parquet
+*.zst
+# keep audit verify reports — evidence per 0.6 (do not ignore docs/audit/*/verify_report.json)
+!docs/audit/*/verify_report.json
