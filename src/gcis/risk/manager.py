@@ -35,6 +35,12 @@ class RiskManager:
             return {"allowed": False, "reason_code": "HARD_CAP_TRADES", "detail": f"{max_trades}"}
         if kill_switch:
             return {"allowed": False, "reason_code": "KILL_SWITCH_ACTIVE"}
+        # news veto (DAT-13) — if intent flagged as news blocked
+        if intent.get("news_veto_blocked"):
+            return {"allowed": False, "reason_code": "NEWS_BLACKOUT", "detail": intent.get("news_veto_reason")}
+        # psy veto advisory (PSY-01) — currently not blocking paper per config, but logs
+        if intent.get("psy_veto_blocked") and self.config.get("psychology",{}).get("block_on_psy_risk_off", False):
+            return {"allowed": False, "reason_code": "PSY_RISK_OFF", "detail": intent.get("psy_veto_reason")}
         if daily_state.get("risk_lock") == "BLOCK_NEW_TRADES":
             return {"allowed": False, "reason_code": "RISK_LIMIT", "detail": "daily loss lock"}
         if daily_state.get("trades_today",0) >= max_trades:
@@ -52,6 +58,29 @@ class RiskManager:
         per_symbol = risk_cfg.get("max_per_symbol_risk_pct", 0.5)
         if exposure.get("per_symbol_risk",0) >= per_symbol:
             return {"allowed": False, "reason_code": "RISK_LIMIT", "detail": "per symbol risk"}
+        # per cluster (RSK-04 dynamic correlation, P15 integration)
+        max_per_cluster = risk_cfg.get("max_per_cluster_risk_pct", 1.0)
+        # market_beta special
+        per_cluster = exposure.get("per_cluster_risk", 0)
+        # also support per_cluster dict by cluster id
+        if isinstance(per_cluster, dict):
+            # find max over clusters
+            max_cluster_val = max(per_cluster.values()) if per_cluster else 0
+            if max_cluster_val >= max_per_cluster:
+                return {"allowed": False, "reason_code": "RISK_LIMIT", "detail": f"per cluster risk {max_cluster_val:.3f} >= {max_per_cluster}"}
+            # also check specific cluster for intent's symbol if provided via intent cluster
+            intent_cluster = intent.get("cluster_id")
+            if intent_cluster and per_cluster.get(intent_cluster,0) + float(risk_pct) > max_per_cluster:
+                return {"allowed": False, "reason_code": "RISK_LIMIT", "detail": f"cluster {intent_cluster} would exceed {max_per_cluster}"}
+        else:
+            if float(per_cluster) >= max_per_cluster:
+                return {"allowed": False, "reason_code": "RISK_LIMIT", "detail": f"per cluster risk {per_cluster} >= {max_per_cluster}"}
+            if intent.get("cluster_id") and float(per_cluster) + float(risk_pct) > max_per_cluster:
+                return {"allowed": False, "reason_code": "RISK_LIMIT", "detail": f"cluster {intent.get('cluster_id')} would exceed {max_per_cluster}"}
+        # per strategy
+        max_per_strategy = risk_cfg.get("max_per_strategy_risk_pct", 1.0)
+        if exposure.get("per_strategy_risk",0) >= max_per_strategy:
+            return {"allowed": False, "reason_code": "RISK_LIMIT", "detail": "per strategy risk"}
         # leverage caps (INV-09, FUT-02)
         lev_cap = Decimal(str(risk_cfg.get("max_leverage_cap", 3)))
         eff_cap = Decimal(str(risk_cfg.get("max_effective_leverage", 3)))
