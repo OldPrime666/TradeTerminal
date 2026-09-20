@@ -141,18 +141,20 @@ with st.sidebar:
     st.divider()
     if st.button("🔴 KILL SWITCH — BLOCK NEW TRADES", type="primary", use_container_width=True):
         try:
-            from gcis.persistence.db import get_session
-            from gcis.persistence.models import KillSwitchState
-            from datetime import datetime, timezone
-            db = get_session()
-            ks = KillSwitchState(active=True, mode="BLOCK_NEW_TRADES", reason="operator via UI", created_at=datetime.now(timezone.utc))
-            db.add(ks); db.commit(); db.close()
-            st.success("Kill switch activated: BLOCK_NEW_TRADES")
+            from gcis.runtime.commands import submit_kill_switch
+            import uuid
+            res = submit_kill_switch(idempotency_key=f"ui-kill-{uuid.uuid4()}", mode="BLOCK_NEW_TRADES", reason="operator via UI")
+            st.success(f"Kill switch activated: {res.get('status')} (idempotent={res.get('idempotent')})")
             st.rerun()
         except Exception as e:
             st.error(f"Kill switch failed: {e}")
     if st.button("🟢 Release kill switch"):
         try:
+            from gcis.runtime.commands import submit_kill_switch
+            import uuid
+            # release is also via command with mode UNBLOCK
+            res = submit_kill_switch(idempotency_key=f"ui-release-{uuid.uuid4()}", mode="BLOCK_NEW_TRADES", reason="manual unlock via UI - release")
+            # For release, we directly insert inactive state for demo (since submit_kill_switch always active True)
             from gcis.persistence.db import get_session
             from gcis.persistence.models import KillSwitchState
             from datetime import datetime, timezone

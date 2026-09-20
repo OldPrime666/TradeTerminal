@@ -1,6 +1,6 @@
 {
-  "implementation_version": "0.1.10",
-  "current_phase": "P10",
+  "implementation_version": "0.1.11",
+  "current_phase": "P11",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
@@ -12,7 +12,7 @@
     "P07": "CODE_VERIFIED",
     "P08": "CODE_VERIFIED",
     "P09": "CODE_VERIFIED",
-    "P10": "NOT_STARTED",
+    "P10": "CODE_VERIFIED",
     "P11": "NOT_STARTED",
     "P12": "NOT_STARTED",
     "P13": "NOT_STARTED",
@@ -674,6 +674,55 @@
         "tests/unit/test_runtime_p09.py"
       ],
       "evidence": "docs/audit/P09/verify_report.json"
+    },
+    "UIX-01": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p10.py"
+      ],
+      "evidence": "docs/audit/P10/verify_report.json"
+    },
+    "UIX-03": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p10.py"
+      ],
+      "evidence": "docs/audit/P10/verify_report.json"
+    },
+    "UIX-04": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p10.py"
+      ],
+      "evidence": "docs/audit/P10/verify_report.json"
+    },
+    "UIX-14": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p10.py"
+      ],
+      "evidence": "docs/audit/P10/verify_report.json"
+    },
+    "ARC-16": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p10.py"
+      ],
+      "evidence": "docs/audit/P10/verify_report.json"
+    },
+    "OPS-06": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p10.py"
+      ],
+      "evidence": "docs/audit/P10/verify_report.json"
+    },
+    "OPS-07": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p10.py"
+      ],
+      "evidence": "docs/audit/P10/verify_report.json"
     }
   },
   "operator_decisions": {
@@ -693,19 +742,19 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T19:23:50.231884+00:00",
-    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T19:23:38.535311+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [ 72%]\\n...........................                                              [100%]\\n=============================== warnings summary ===============================\\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\\n  \\n    self._warn_or_fail_if_strict(f\\\"Unknown config option: {key}\\\\n\\\")\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n\"}], \"all_ok\": true, \"duration_s\": 11.69541072845459, \"finished_at\": \"2026-09-20T19:23:50.230721+00:00\"}"
+    "timestamp": "2026-09-20T19:27:03.309058+00:00",
+    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T19:26:51.021026+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [ 67%]\\n...................................                                      [100%]\\n=============================== warnings summary ===============================\\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\\n  \\n    self._warn_or_fail_if_strict(f\\\"Unknown config option: {key}\\\\n\\\")\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n\"}], \"all_ok\": true, \"duration_s\": 12.287004470825195, \"finished_at\": \"2026-09-20T19:27:03.308026+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P09 runtime supervisor 4 processes + heartbeats + crash-loop + recovery + commands",
+  "current_file_group": "P10 Minimal UI read-only terminal + kill switch + banner + health",
   "pending_tasks": [
-    "P10 Minimal UI read-only terminal + kill switch (M0 last)",
-    "P11 Full terminal (P1)",
-    "P12-P22 Research/Hardening + P99 audit"
+    "P11 Full terminal (P1) overview/coin/charts/Risk Center",
+    "P12-P22 Research/Hardening + P99 audit",
+    "M0 v0.1 CODE COMPLETE \u2014 EMPIRICAL VALIDATION PENDING"
   ],
   "next_actions": [
-    "Run: PYTHONPATH=src python -m pytest tests/unit/test_runtime_p09.py -v  # 7 passed",
-    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 99 passed",
-    "Next phase: P10 Minimal UI \u2014 streamlit read-only + banner + health"
+    "Run: PYTHONPATH=src python -m pytest tests/unit/test_app_p10.py -v  # 8 passed",
+    "Verify: PYTHONPATH=src python -m gcis.cli verify --post-install  # UNVERIFIED_ENV honest in sandbox",
+    "Next phase: P11 Full terminal \u2014 multipage Streamlit"
   ]
 }

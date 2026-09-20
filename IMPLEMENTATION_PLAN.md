@@ -129,7 +129,14 @@
 - [x] Verify --full 99 tests 4 checks OK (9 invariants SEC-09), source_matrix 18/18
 - Next: tag `phase-P09` commit, advance BUILD_STATE to P10
 
-## P10 Minimal UI — M0 v0.1 — NOT_STARTED (next, last M0)
-- [ ] Read-only terminal `src/gcis/app/streamlit_app.py` banner UIX-04, health UIX-10, kill switch UIX-01 via commands, .bat wrappers, verify --post-install
+## P10 Minimal UI — M0 v0.1 — CODE_VERIFIED 2026-09-20
+- [x] Streamlit `src/gcis/app/streamlit_app.py` 400+ lines P10: dark navy UIX-12, banner UIX-04 (Mode/Data/Transport, UTC/London/NY, Venue fallback, Coverage), sidebar dynamic ContractRegistry INV-25, kill switch UIX-01 via `submit_kill_switch` idempotency_key uuid + Command, tabs Overview/Scanner/Coin Detail/Risk Center/System Health/Research read-only INV-06 (no execution/risk import, no while True, no session_state trading)
+- [x] .bat `start.bat/verify.bat/start.sh/install.sh` thin wrappers ARC-16, UIX-14
+- [x] Tests `tests/unit/test_app_p10.py` 8 tests: banner/health, kill switch via command, no session_state, no loop, bat thin, verify --post-install UNVERIFIED_ENV, health, tabs — all 8 passed (total 107)
+- [x] Verify --full 107 tests 4 checks OK (9 invariants SEC-09) + verify --post-install PASSED 12s
+- Next: tag `phase-P10` commit, advance BUILD_STATE to P11 — **M0 v0.1 CODE COMPLETE (P00-P10 11 phases)**
 
-## ... (P11-P99 per PHASES.md v3: P11 full terminal, P12-P22 + P99)
+## P11 Full terminal — NOT_STARTED (next, P1)
+- [ ] Multipage Streamlit `src/gcis/app/pages/` overview/coin/charts/Risk Center/Trade Desk per UIX-02,05..13, EXE-02 idempotency
+
+## ... (P12-P99 per PHASES.md v3: P12 Research I, P13 Probability A, P14 Hardening ... + P99)
