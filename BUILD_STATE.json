@@ -1,13 +1,13 @@
 {
-  "implementation_version": "0.1.4",
-  "current_phase": "P04",
+  "implementation_version": "0.1.5",
+  "current_phase": "P05",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
     "P02": "CODE_VERIFIED",
     "P03": "CODE_VERIFIED",
-    "P04": "IN_PROGRESS",
-    "P05": "NOT_STARTED",
+    "P04": "CODE_VERIFIED",
+    "P05": "IN_PROGRESS",
     "P06": "NOT_STARTED",
     "P07": "NOT_STARTED",
     "P08": "NOT_STARTED",
@@ -87,9 +87,9 @@
     "ANA-02": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_*"
+        "tests/unit/test_market_p04.py::test_indicators_causal_no_leakage"
       ],
-      "evidence": "verify_report.json"
+      "evidence": "market/engine.py"
     },
     "ICT-01": {
       "status": "CODE_VERIFIED",
@@ -296,6 +296,34 @@
         "tests/unit/test_transport.py::test_candle_persist_and_idempotent"
       ],
       "evidence": "EventOutbox"
+    },
+    "ANA-01": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_market_p04.py::test_market_view_no_lookahead_via_engine"
+      ],
+      "evidence": "docs/audit/P04/verify_report.json"
+    },
+    "ANA-03": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_market_p04.py::test_sessions_tz_aware"
+      ],
+      "evidence": "market/sessions.py"
+    },
+    "ANA-04": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_market_p04.py::test_regime_causal_and_deterministic"
+      ],
+      "evidence": "market/regime.py"
+    },
+    "ARC-06": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_market_p04.py::test_market_view_no_lookahead_via_engine"
+      ],
+      "evidence": "MarketView as_of"
     }
   },
   "operator_decisions": {
@@ -315,19 +343,19 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T18:24:38.219457+00:00",
-    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:24:35.762676+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................                                 [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 2.4556219577789307, \"finished_at\": \"2026-09-20T18:24:38.218297+00:00\"}"
+    "timestamp": "2026-09-20T18:29:16.412734+00:00",
+    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:29:13.624269+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \".................................................                        [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 2.786647319793701, \"finished_at\": \"2026-09-20T18:29:16.410915+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P03 live ingest (sharded WS, gap, polling, recorder)",
+  "current_file_group": "P04 market (indicators regime sessions MarketView)",
   "pending_tasks": [
-    "P04 market: indicators ATR/RSI/EMA/BB, sessions tz-aware, regime v1 causal (ADx/ER/BB/ATR), MarketView as_of no-lookahead",
-    "P04 causality/oracle tests, leakage",
-    "P05 ICT core: swings BOS/CHOCH etc. golden+no-repaint"
+    "P05 ICT core: swings L=R=3, BOS/CHOCH, displacement body_to_range 0.60, FVG 0.15 ATR, OB within 3 require BOS, sweeps 0.10 ATR, mitigation/breaker/premium OTE 0.62-0.79, HTF/LTF NO_TRADE, golden+no-repaint",
+    "P05 docs==code, ICT definitions sync",
+    "P06 strategy ICT-A gates/fusion lifecycle"
   ],
   "next_actions": [
-    "Run: PYTHONPATH=src python -m pytest tests/unit/test_transport.py -v  # 8 passed",
-    "Verify: python scripts/check_invariants.py && PYTHONPATH=src python -m pytest tests/unit -q  # 40 passed",
-    "Implement: src/gcis/market/indicators.py P04 — ATR, RSI, EMA already; add ADX/ER/BB percentile regime + MarketView causality tests"
+    "Run: PYTHONPATH=src python -m pytest tests/unit/test_market_p04.py -v  # 9 passed",
+    "Verify: python scripts/check_invariants.py && PYTHONPATH=src python -m pytest tests/unit -q  # 49 passed",
+    "Implement: src/gcis/ict/ P05 — swings, structure, FVG, OB etc. with no-repaint tests"
   ]
 }
