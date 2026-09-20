@@ -109,9 +109,19 @@
 - [x] Verify --full 82 tests 4 checks OK (9 invariants SEC-09), source_matrix 18/18
 - Next: tag `phase-P07` commit, advance BUILD_STATE to P08
 
-## P08 Backtest — NOT_STARTED (next)
-- [ ] Shared-core backtest `src/gcis/backtest/engine.py` causal replay via MarketView(as_of), slippage/funding, HTF derived
-- [ ] 4 baselines random/buy-hold/momentum/regime + census tier
-- [ ] Tests `tests/unit/test_backtest_p08.py` 6+ tests, `verify --full` 88+ tests
+## P08 Backtest — CODE_VERIFIED 2026-09-20
+- [x] Fidelity `src/gcis/backtest/fidelity.py` BKT-02 `resolve_exit_pessimistic` stop_first pessimistic (LONG/SHORT both hit → STOP), `FIDELITY_LEVELS` OHLC_APPROXIMATION/TICK_FROM_BAR
+- [x] Metrics `src/gcis/backtest/metrics.py` BKT-08 `compute_metrics` 365d win_rate/avg_win/loss/expectancy/pf/max_dd/sharpe_like/total_net/total_R
+- [x] Baselines `src/gcis/backtest/baselines.py` BKT-05 4 baselines `baseline_random` (seed 42 jitter, pessimistic, 5bps) `baseline_buy_hold` `baseline_ema_cross` 9/21 causal `baseline_time_shift_placebo` 24/96/288 hashlib + `run_all_baselines`/`verdict_vs_baselines` OUTPERFORMS etc.
+- [x] Census `src/gcis/backtest/census.py` BKT-06/10/12 `run_census(symbols,timeframe)` survivorship-aware (Candle not TRADING), per_symbol days, `quality_report` → backtestability OK/GAP/INSUFFICIENT_HISTORY/NO_DATA, TIER NONE(<1000)/TIER_POOLED_ONLY(1000-5000)/TIER_STRATEGY(>5000)+GAP_WARN, effective_sample, regime note
+- [x] Engine `src/gcis/backtest/engine.py` BKT-01..04,08,10,12 `run_backtest(symbols,timeframe,start,end,fidelity,df_override)` shared core MarketView incremental causal `df[:i+1]` + `evaluate_ict_a` + gates `evaluate_mv_gates(res,view,symbol,cfg)`/`evaluate_px_gates(res,{},False,False)` + `is_mv_pass`/`is_px_pass`, entry_zone midpoint / invalidation stop / targets[0] per STR-01, pessimistic `resolve_exit_pessimistic` 100 bars else TIME_EXIT, costs 5bps taker (BKT-03) funding 0, lineage cfg sha12 + analysis 0.1.0 + evidence_hash, metrics 365d, baselines 4 + verdict, backtestability, survivorship, census
+- [x] CLI `python -m gcis.cli backtest/census` already backed; config `backtest: default_fidelity OHLC_APPROXIMATION same_bar stop_first annualization 365` already in default.yaml
+- [x] Tests `tests/unit/test_backtest_p08.py` 10 tests BKT-01..12: fidelity stop_first, costs realism mock 1 trade entry100.5 cost0.10 net2.39, lineage cfg- , baselines 4+verdict, census 1200→TIER_POOLED_ONLY 6000→TIER_STRATEGY, metrics 365, backtestability GAP/INSUFFICIENT/NO DATA, survivorship, same core causal 51 increasing, no_data honest — all 10 passed (total 92)
+- [x] Verify --full 92 tests 4 checks OK (9 invariants SEC-09), source_matrix 18/18
+- Next: tag `phase-P08` commit, advance BUILD_STATE to P09
 
-## ... (P09-P99 per PHASES.md v3: P09 Runtime, P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)
+## P09 Runtime — NOT_STARTED (next)
+- [ ] Supervisor 4 processes ingest/analyze/risk/paper, heartbeats ≤5s, backoff 1s→60s jitter crash-loop >5/10m FAILED, recovery idempotency
+- [ ] Tests `tests/unit/test_runtime_p09.py` 6+ tests, `verify --full` 98+ tests
+
+## ... (P10-P99 per PHASES.md v3: P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)

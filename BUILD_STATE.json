@@ -1,6 +1,6 @@
 {
-  "implementation_version": "0.1.8",
-  "current_phase": "P08",
+  "implementation_version": "0.1.9",
+  "current_phase": "P09",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
@@ -10,7 +10,7 @@
     "P05": "CODE_VERIFIED",
     "P06": "CODE_VERIFIED",
     "P07": "CODE_VERIFIED",
-    "P08": "NOT_STARTED",
+    "P08": "CODE_VERIFIED",
     "P09": "NOT_STARTED",
     "P10": "NOT_STARTED",
     "P11": "NOT_STARTED",
@@ -569,6 +569,76 @@
         "tests/unit/test_risk_p07.py"
       ],
       "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "BKT-01": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
+    },
+    "BKT-02": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
+    },
+    "BKT-03": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
+    },
+    "BKT-04": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
+    },
+    "BKT-05": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
+    },
+    "BKT-06": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
+    },
+    "BKT-08": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
+    },
+    "BKT-10": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
+    },
+    "BKT-11": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
+    },
+    "BKT-12": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_backtest_p08.py"
+      ],
+      "evidence": "docs/audit/P08/verify_report.json"
     }
   },
   "operator_decisions": {
@@ -588,19 +658,19 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T18:58:17.908145+00:00",
-    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:58:08.830410+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [ 87%]\\n..........                                                               [100%]\\n=============================== warnings summary ===============================\\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\\n  \\n    self._warn_or_fail_if_strict(f\\\"Unknown config option: {key}\\\\n\\\")\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n\"}], \"all_ok\": true, \"duration_s\": 9.076584100723267, \"finished_at\": \"2026-09-20T18:58:17.906992+00:00\"}"
+    "timestamp": "2026-09-20T19:14:05.758580+00:00",
+    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T19:13:55.413453+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [ 78%]\\n....................                                                     [100%]\\n=============================== warnings summary ===============================\\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\\n  \\n    self._warn_or_fail_if_strict(f\\\"Unknown config option: {key}\\\\n\\\")\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n\"}], \"all_ok\": true, \"duration_s\": 10.344074726104736, \"finished_at\": \"2026-09-20T19:14:05.757528+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P07 risk & paper (daily, kill-switch, sizing, paper fills, positions, catch-up)",
+  "current_file_group": "P08 backtest shared-core + 4 baselines + census",
   "pending_tasks": [
-    "P08 Backtest shared-core + baselines 4 + census",
     "P09 Runtime supervisor 4 processes",
-    "P10 Minimal UI"
+    "P10 Minimal UI",
+    "P11 Full terminal"
   ],
   "next_actions": [
-    "Run: PYTHONPATH=src python -m pytest tests/unit/test_risk_p07.py -v  # 10 passed",
-    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 82 passed",
-    "Next phase: P08 Backtest \u2014 shared engine + 4 baselines + census"
+    "Run: PYTHONPATH=src python -m pytest tests/unit/test_backtest_p08.py -v  # 10 passed",
+    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 92 passed",
+    "Next phase: P09 Runtime \u2014 supervisor, heartbeats, recovery"
   ]
 }
