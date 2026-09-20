@@ -1,6 +1,6 @@
 {
-  "implementation_version": "0.1.6",
-  "current_phase": "P06",
+  "implementation_version": "0.1.7",
+  "current_phase": "P07",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
@@ -8,8 +8,8 @@
     "P03": "CODE_VERIFIED",
     "P04": "CODE_VERIFIED",
     "P05": "CODE_VERIFIED",
-    "P06": "IN_PROGRESS",
-    "P07": "NOT_STARTED",
+    "P06": "CODE_VERIFIED",
+    "P07": "IN_PROGRESS",
     "P08": "NOT_STARTED",
     "P09": "NOT_STARTED",
     "P10": "NOT_STARTED",
@@ -101,16 +101,16 @@
     "STR-02": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_*"
+        "tests/unit/test_signals_p06.py::test_strategy_ict_a_long_short_bidirectional_with_view"
       ],
-      "evidence": "verify_report.json"
+      "evidence": "strategies/ict_a.py"
     },
     "SIG-03": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_*"
+        "tests/unit/test_signals_p06.py::test_lifecycle_illegal_transitions_extended"
       ],
-      "evidence": "verify_report.json"
+      "evidence": "signals/lifecycle.py"
     },
     "RSK-01": {
       "status": "CODE_VERIFIED",
@@ -408,6 +408,62 @@
         "tests/unit/test_ict_p05.py::test_docs_eq_code"
       ],
       "evidence": "docs/ICT_DEFINITIONS.md vs config/default.yaml"
+    },
+    "STR-01": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_signals_p06.py::test_strategy_contract_fields"
+      ],
+      "evidence": "docs/audit/P06/verify_report.json"
+    },
+    "SIG-01": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_signals_p06.py::test_gates_mv_px_30plus"
+      ],
+      "evidence": "signals/gates.py"
+    },
+    "SIG-02": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_signals_p06.py::test_fusion_setup_score_weights_and_grades"
+      ],
+      "evidence": "signals/fusion.py"
+    },
+    "SIG-04": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_signals_p06.py::test_identity_dedup_window_and_ulid"
+      ],
+      "evidence": "signals/identity.py"
+    },
+    "SIG-05": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_signals_p06.py::test_ttl_expiry_per_timeframe"
+      ],
+      "evidence": "signals/lifecycle.py TTL"
+    },
+    "SIG-06": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_signals_p06.py::test_snapshots_evidence_hash_deterministic"
+      ],
+      "evidence": "signals/snapshots.py"
+    },
+    "SIG-07": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_signals_p06.py::test_signal_persistence_contract_and_docs_eq_code"
+      ],
+      "evidence": "persistence/models.py::Signal"
+    },
+    "SIG-08": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_signals_p06.py::test_outcome_tracker_mv_pass_labels_and_risk_blocked"
+      ],
+      "evidence": "signals/outcome_tracker.py"
     }
   },
   "operator_decisions": {
@@ -427,19 +483,19 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T18:41:19.345915+00:00",
-    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:41:09.919538+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"..............................................................           [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 9.425196886062622, \"finished_at\": \"2026-09-20T18:41:19.344734+00:00\"}"
+    "timestamp": "2026-09-20T18:48:41.254244+00:00",
+    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:48:31.718737+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 9.534118175506592, \"finished_at\": \"2026-09-20T18:48:41.252858+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P05 ICT core (swings structure displacement FVG OB sweeps mitigation breaker premium HTF)",
+  "current_file_group": "P06 signals (gates fusion lifecycle dedup snapshots outcome) + strategy ICT-A bidirectional",
   "pending_tasks": [
-    "P06 Strategy & signals: ICT-A gates/fusion/state machines/dedup/TTL/snapshots/Outcome Tracker, illegal-transition tests",
-    "P06 docs==code strategy definitions",
-    "P07 Risk&Paper sizing/kill-switch/paper fills"
+    "P07 Risk & Paper: risk caps 0.5/2/10, daily state 00:00 UTC incl unrealised, sizing round down, kill switch, paper fills conservative, positions, catch-up",
+    "P07 docs RISK_POLICY",
+    "P08 Backtest shared-core + baselines 4 + census"
   ],
   "next_actions": [
-    "Run: PYTHONPATH=src python -m pytest tests/unit/test_ict_p05.py -v  # 13 passed",
-    "Verify: python scripts/check_invariants.py && PYTHONPATH=src python -m pytest tests/unit -q  # 62 passed",
-    "Implement: src/gcis/strategies/ict_a.py + signals/* P06"
+    "Run: PYTHONPATH=src python -m pytest tests/unit/test_signals_p06.py -v  # 10 passed",
+    "Verify: python scripts/check_invariants.py && PYTHONPATH=src python -m pytest tests/unit -q  # 72 passed",
+    "Implement: src/gcis/risk/* + execution/paper.py P07"
   ]
 }

@@ -80,4 +80,20 @@
 - [x] Docs `docs/ICT_DEFINITIONS.md` comprehensive per ICT-01..13, traceability updated ICT-01..13 CODE_VERIFIED, verify --full 62 dots
 - Next: tag `phase-P05` commit, advance BUILD_STATE to P06
 
-## ... (P06-P99 per PHASES.md v3: P06 Strategy, P07 Risk&Paper, P08 Backtest, P09 Runtime, P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)
+## P06 Strategy & signals — CODE_VERIFIED 2026-09-20
+- [x] Gates MV 33 + PX 7 =40 distinct (GateReason 44, SIG-01 30+ ) — `src/gcis/signals/gates.py` with MV checks quality/disconnected/history/contract/spread etc., PX risk/kill/dup/cooldown/reconciliation
+- [x] Fusion setup_score 0-100 weighted htf20 liq20 disp15 zone15 regime10 session5 vol5 cost10, grades A85 B70 C55, hash 16, deterministic — `src/gcis/signals/fusion.py` compute_setup_score + fuse picks best eligible, else best ineligible for display, confluence
+- [x] Lifecycle state machines DISCOVERED→QUALIFIED→ARMED→TRIGGERED→EXECUTED + BLOCKED/REJECTED/EXPIRED etc., ALLOWED map, terminals no outgoing — `src/gcis/signals/lifecycle.py` can_transition + ttl_for_timeframe
+- [x] Identity ULID 26 + dedup window 6 bars (5m30 15m90 1h360) — `src/gcis/signals/identity.py` generate_signal_id ULID + is_duplicate same symbol/dir/tf within window
+- [x] TTL expiry per timeframe 5m12→60m 15m8→120m 1h6→360m — `lifecycle.compute_expiry`
+- [x] Snapshots deterministic evidence_hash 16, candles tail 5, config_version — `src/gcis/signals/snapshots.py` capture_snapshot
+- [x] Signal contract Signal DB 18 cols ULID PK venue/family/type symbol direction timeframe state DISCOVERED setup_score/quality evidence_hash analysis/config version — `src/gcis/persistence/models.py::Signal` + test
+- [x] Outcome Tracker every MV-pass net R even risk-blocked, cost 5+2 bps, pessimistic, would_be_blocked_by_risk — `src/gcis/signals/outcome_tracker.py` compute_net_r 1.23 for 100/99/101.5, label PX_BLOCKED vs MV_FAIL
+- [x] StrategyResult contract 11 fields — `src/gcis/strategies/base.py` + `STRATEGY_DEFINITIONS.md`
+- [x] ICT-A bi-directional LONG/SHORT (config directions [LONG,SHORT]) HTF bias BULL/BEAR, sweep BULL/BEAR, FVG/OB, premium discount/premium, stop 0.25 ATR TP 1.5/3.0 netRR 1.2/2.0 — `src/gcis/strategies/ict_a.py` both directions with helper _evaluate_direction, causal, deterministic
+- [x] Docs `docs/STRATEGY_DEFINITIONS.md` STR-01/02 + `docs/SIGNAL_LIFECYCLE.md` SIG-01..08 single source vs code
+- [x] Tests `tests/unit/test_signals_p06.py` 10 tests: gates 30+ and mv/px blocked, fusion weights+grades+hash and best eligible both dirs, lifecycle illegal extended 20+ asserts + terminals, TTL 5m60 15m120 1h360, ULID 26 + dedup true within 10m false 31m etc., snapshots deterministic hash, outcome net R 1.23 and risk-blocked, contract fields, ICT-A long+short view crafting (bias 105/106 vs 106/105), DB contract — all 10 passed (total 72)
+- [x] Verify --full 72 tests 4 checks OK, check_invariants 8 OK, source_matrix 18/18
+- Next: tag `phase-P06` commit, advance BUILD_STATE to P07
+
+## ... (P07-P99 per PHASES.md v3: P07 Risk&Paper, P08 Backtest, P09 Runtime, P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)
