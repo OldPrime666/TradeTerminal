@@ -1,6 +1,6 @@
 {
-  "implementation_version": "0.1.11",
-  "current_phase": "P11",
+  "implementation_version": "0.1.12",
+  "current_phase": "P12",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
@@ -13,7 +13,7 @@
     "P08": "CODE_VERIFIED",
     "P09": "CODE_VERIFIED",
     "P10": "CODE_VERIFIED",
-    "P11": "NOT_STARTED",
+    "P11": "CODE_VERIFIED",
     "P12": "NOT_STARTED",
     "P13": "NOT_STARTED",
     "P14": "NOT_STARTED",
@@ -723,16 +723,86 @@
         "tests/unit/test_app_p10.py"
       ],
       "evidence": "docs/audit/P10/verify_report.json"
+    },
+    "UIX-02": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py::test_pages_exist"
+      ],
+      "evidence": "docs/audit/P11/verify_report.json"
+    },
+    "UIX-05": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py::test_overview_strongest_logic"
+      ],
+      "evidence": "src/gcis/app/readmodels/overview.py"
+    },
+    "UIX-06": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py::test_pages_exist"
+      ],
+      "evidence": "src/gcis/app/pages/coin_detail.py"
+    },
+    "UIX-07": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py::test_charts_plotly_and_asof"
+      ],
+      "evidence": "src/gcis/app/components/charts.py capped 800"
+    },
+    "UIX-08": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py::test_trade_desk_idempotency"
+      ],
+      "evidence": "src/gcis/app/pages/trade_desk.py submit_command"
+    },
+    "UIX-09": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py::test_risk_center_exists"
+      ],
+      "evidence": "src/gcis/app/pages/risk_center.py"
+    },
+    "UIX-10": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py::test_risk_center_exists"
+      ],
+      "evidence": "docs/audit/P11/REPORT.md"
+    },
+    "UIX-11": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py"
+      ],
+      "evidence": "docs/audit/P11/verify_report.json"
+    },
+    "UIX-12": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py::test_streamlit_app_still_minimal"
+      ],
+      "evidence": "src/gcis/app/streamlit_app.py dark navy"
+    },
+    "UIX-13": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_app_p11.py::test_no_forbidden_strings"
+      ],
+      "evidence": "no guaranteed profit"
     }
   },
   "operator_decisions": {
-    "OD-01": "all crypto futures contracts listed as tradable on active venue (Binance UM default) \u2014 dynamic, no cap (INV-25)",
+    "OD-01": "all crypto futures contracts listed as tradable on active venue (Binance UM default) — dynamic, no cap (INV-25)",
     "OD-02": "futures taker 5 bps, maker 2 bps + slippage + funding (U)",
     "OD-03": "Part 12 session conventions (not validated)",
     "OD-04": "00:00 UTC",
     "OD-05": "10000 USDT",
     "OD-06": "local PostgreSQL or SQLite fallback",
-    "OD-07": "free public market data only \u2014 failover Binance UM \u2192 Bybit \u2192 OKX \u2192 Hyperliquid \u2192 further (Appendix A); geo\u2192failover, never circumvent; all fail\u2192NO DATA",
+    "OD-07": "free public market data only — failover Binance UM → Bybit → OKX → Hyperliquid → further (Appendix A); geo→failover, never circumvent; all fail→NO DATA",
     "OD-08": "Live disabled",
     "OD-09": "Paper AUTO EXPERIMENTAL; Live SEMI_AUTO",
     "OD-10": "FUTURES linear perp first; leverage 3x ISOLATED one-way; long+short in Research/Paper"
@@ -742,19 +812,20 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T19:27:03.309058+00:00",
-    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T19:26:51.021026+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [ 67%]\\n...................................                                      [100%]\\n=============================== warnings summary ===============================\\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\\n  \\n    self._warn_or_fail_if_strict(f\\\"Unknown config option: {key}\\\\n\\\")\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n\"}], \"all_ok\": true, \"duration_s\": 12.287004470825195, \"finished_at\": \"2026-09-20T19:27:03.308026+00:00\"}"
+    "timestamp": "2026-09-20T19:42:44.771365+00:00",
+    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T19:42:32.443599+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [ 62%]\\n...........................................                              [100%]\\n=============================== warnings summary ===============================\\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\\n  \\n    self._warn_or_fail_if_strict(f\\\"Unknown config option: {key}\\\\n\\\")\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n\"}], \"all_ok\": true, \"duration_s\": 12.327771186828613, \"finished_at\": \"2026-09-20T19:42:44.771365+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P10 Minimal UI read-only terminal + kill switch + banner + health",
+  "current_file_group": "P11 Full terminal — multipage UIX-02,05..13 + EXE-02 idempotency",
   "pending_tasks": [
-    "P11 Full terminal (P1) overview/coin/charts/Risk Center",
     "P12-P22 Research/Hardening + P99 audit",
-    "M0 v0.1 CODE COMPLETE \u2014 EMPIRICAL VALIDATION PENDING"
+    "P11 115 tests 9 invariants 18 caps verified",
+    "M0 v0.1 CODE COMPLETE — EMPIRICAL VALIDATION PENDING"
   ],
   "next_actions": [
-    "Run: PYTHONPATH=src python -m pytest tests/unit/test_app_p10.py -v  # 8 passed",
-    "Verify: PYTHONPATH=src python -m gcis.cli verify --post-install  # UNVERIFIED_ENV honest in sandbox",
-    "Next phase: P11 Full terminal \u2014 multipage Streamlit"
+    "Next: PYTHONPATH=src python -m pytest tests/unit/test_app_p11.py -v  # 8 passed",
+    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 115 passed",
+    "Commit: git add -A && git commit -m 'P11 Full terminal CODE_VERIFIED' && git push origin arena/01a0bfdc-tradeterminal",
+    "Next phase: P12 Research I — walk-forward, Monte Carlo, STR-03/04/05/08"
   ]
 }
