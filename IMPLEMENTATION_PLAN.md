@@ -64,4 +64,20 @@
 - [x] Verify: `verify --full` PASSED 49 tests (9 new market p04 +40 prior), `check_invariants` 9/9, `source_matrix` 18/18
 - Next: tag `phase-P04` commit, advance BUILD_STATE to P05
 
-## ... (P05-P99 per PHASES.md v3: P05 ICT core, P06 Strategy, P07 Risk&Paper, P08 Backtest, P09 Runtime, P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)
+## P05 ICT core — CODE_VERIFIED 2026-09-20
+- [x] Swings L=R=3, min_strength_atr 0.5, min_separation 3, UTC confirmation, keep-first (no repaint) — `src/gcis/ict/swings.py` with strength filter + separation + causal p+R
+- [x] Structure BOS/CHOCH (close +0.10 ATR, bias UNDEFINED→2H+2L, eligible only if confirmation<=bar, UTC-aware, BROKEN) — `src/gcis/ict/structure.py` fixed naive/aware bug + deterministic flip
+- [x] Displacement body/range 0.60, range≥1.5 ATR, close 0.70 (bull upper / bear lower) — `src/gcis/ict/displacement.py` + close_position logic
+- [x] FVG gap≥max(0.15 ATR,2 ticks) + displacement i-1, zone [high[i-2],low[i]], size_atr, FRESH — `src/gcis/ict/fvg.py` with tick 0.01, 50pct_or_full deferred to mitigation
+- [x] OrderBlock last bearish within 3 of displacement+BOS, body zone, max_age 300, require_bos — `src/gcis/ict/order_blocks.py` with disp window + BOS linkage + body zone
+- [x] Sweeps equal tolerance 0.10 ATR min 2 touches lookback 100, penetration 0.05 ATR, wick + close back, displacement 3, fallback 20-bar rolling — `src/gcis/ict/sweeps.py` fixed small-n lookback + fallback, equal level clustering causal
+- [x] Mitigation FVG/OB (FVG 50pct or full, OB mid+disp, max_age 200/300, TOUCHED/MITIGATED/INVALIDATED) — `src/gcis/ict/mitigation.py` forward scan causal
+- [x] Breaker Blocks lookahead 50, buffer 0.10 ATR, flips direction on break of mitigated OB — `src/gcis/ict/breaker.py`
+- [x] Premium/Discount OTE 0.62-0.79, eq=(low+high)/2, require_discount/true — `src/gcis/ict/premium.py` + dealing range 20 bars
+- [x] HTF/LTF NO_TRADE policy — `src/gcis/ict/htf.py` check alignment
+- [x] ICT-11 relative units, ICT-13 docs==code — `docs/ICT_DEFINITIONS.md` mirrors config/default.yaml + code thresholds
+- [x] Tests `tests/unit/test_ict_p05.py` 13 tests: swings golden+no-repaint (pivot3 + prefix + oracle spike), structure BOS/CHOCH golden+causal, displacement golden+no-repaint, FVG golden+no-repaint+relative, OB golden requires BOS/disp, sweeps equal golden+no-repaint+oracle, mitigation FVG 50pct (MITIGATED/TOUCHED/INVALIDATED), OB mitigation+breaker, premium OTE, HTF NO_TRADE, relative units, docs==code, integration pipeline causal — all 13 passed (total 62)
+- [x] Docs `docs/ICT_DEFINITIONS.md` comprehensive per ICT-01..13, traceability updated ICT-01..13 CODE_VERIFIED, verify --full 62 dots
+- Next: tag `phase-P05` commit, advance BUILD_STATE to P06
+
+## ... (P06-P99 per PHASES.md v3: P06 Strategy, P07 Risk&Paper, P08 Backtest, P09 Runtime, P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)

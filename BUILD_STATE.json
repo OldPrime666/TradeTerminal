@@ -1,14 +1,14 @@
 {
-  "implementation_version": "0.1.5",
-  "current_phase": "P05",
+  "implementation_version": "0.1.6",
+  "current_phase": "P06",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
     "P02": "CODE_VERIFIED",
     "P03": "CODE_VERIFIED",
     "P04": "CODE_VERIFIED",
-    "P05": "IN_PROGRESS",
-    "P06": "NOT_STARTED",
+    "P05": "CODE_VERIFIED",
+    "P06": "IN_PROGRESS",
     "P07": "NOT_STARTED",
     "P08": "NOT_STARTED",
     "P09": "NOT_STARTED",
@@ -94,9 +94,9 @@
     "ICT-01": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_*"
+        "tests/unit/test_ict_p05.py::test_swings_golden_and_no_repaint"
       ],
-      "evidence": "verify_report.json"
+      "evidence": "docs/audit/P05/verify_report.json"
     },
     "STR-02": {
       "status": "CODE_VERIFIED",
@@ -324,6 +324,90 @@
         "tests/unit/test_market_p04.py::test_market_view_no_lookahead_via_engine"
       ],
       "evidence": "MarketView as_of"
+    },
+    "ICT-02": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_structure_BOS_CHOCh_golden_and_causal"
+      ],
+      "evidence": "ict/structure.py"
+    },
+    "ICT-03": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_displacement_golden_and_no_repaint"
+      ],
+      "evidence": "ict/displacement.py"
+    },
+    "ICT-04": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_fvg_golden_and_no_repaint"
+      ],
+      "evidence": "ict/fvg.py"
+    },
+    "ICT-05": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_order_block_golden_requires_bos_and_displacement"
+      ],
+      "evidence": "ict/order_blocks.py"
+    },
+    "ICT-06": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_sweeps_equal_levels_golden_and_no_repaint"
+      ],
+      "evidence": "ict/sweeps.py"
+    },
+    "ICT-07": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_mitigation_fvg_50pct"
+      ],
+      "evidence": "ict/mitigation.py"
+    },
+    "ICT-08": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_mitigation_ob_and_breaker"
+      ],
+      "evidence": "ict/breaker.py"
+    },
+    "ICT-09": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_premium_discount_and_ote"
+      ],
+      "evidence": "ict/premium.py"
+    },
+    "ICT-10": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_htf_ltf_no_trade_policy"
+      ],
+      "evidence": "ict/htf.py"
+    },
+    "ICT-11": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_relative_units_ict11"
+      ],
+      "evidence": "docs/ICT_DEFINITIONS.md"
+    },
+    "ICT-12": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py goldens + no_repaint"
+      ],
+      "evidence": "docs/audit/P05/verify_report.json"
+    },
+    "ICT-13": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_ict_p05.py::test_docs_eq_code"
+      ],
+      "evidence": "docs/ICT_DEFINITIONS.md vs config/default.yaml"
     }
   },
   "operator_decisions": {
@@ -343,19 +427,19 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T18:29:16.412734+00:00",
-    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:29:13.624269+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \".................................................                        [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 2.786647319793701, \"finished_at\": \"2026-09-20T18:29:16.410915+00:00\"}"
+    "timestamp": "2026-09-20T18:41:19.345915+00:00",
+    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:41:09.919538+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"..............................................................           [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 9.425196886062622, \"finished_at\": \"2026-09-20T18:41:19.344734+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P04 market (indicators regime sessions MarketView)",
+  "current_file_group": "P05 ICT core (swings structure displacement FVG OB sweeps mitigation breaker premium HTF)",
   "pending_tasks": [
-    "P05 ICT core: swings L=R=3, BOS/CHOCH, displacement body_to_range 0.60, FVG 0.15 ATR, OB within 3 require BOS, sweeps 0.10 ATR, mitigation/breaker/premium OTE 0.62-0.79, HTF/LTF NO_TRADE, golden+no-repaint",
-    "P05 docs==code, ICT definitions sync",
-    "P06 strategy ICT-A gates/fusion lifecycle"
+    "P06 Strategy & signals: ICT-A gates/fusion/state machines/dedup/TTL/snapshots/Outcome Tracker, illegal-transition tests",
+    "P06 docs==code strategy definitions",
+    "P07 Risk&Paper sizing/kill-switch/paper fills"
   ],
   "next_actions": [
-    "Run: PYTHONPATH=src python -m pytest tests/unit/test_market_p04.py -v  # 9 passed",
-    "Verify: python scripts/check_invariants.py && PYTHONPATH=src python -m pytest tests/unit -q  # 49 passed",
-    "Implement: src/gcis/ict/ P05 — swings, structure, FVG, OB etc. with no-repaint tests"
+    "Run: PYTHONPATH=src python -m pytest tests/unit/test_ict_p05.py -v  # 13 passed",
+    "Verify: python scripts/check_invariants.py && PYTHONPATH=src python -m pytest tests/unit -q  # 62 passed",
+    "Implement: src/gcis/strategies/ict_a.py + signals/* P06"
   ]
 }

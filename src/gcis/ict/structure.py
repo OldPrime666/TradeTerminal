@@ -1,5 +1,27 @@
+"""
+ICT-02 Structure BOS/CHOCH — causal, deterministic, no-repaint
+Config (ict.structure):
+  break_on close
+  min_break_atr 0.10
+
+Definition:
+  Bias UNDEFINED until >=2 HIGHs and >=2 LOWs confirmed.
+  Initial bias from last swings: if last high > prev high and last low > prev low → BULLISH
+                              elif last high < prev high and last low < prev low → BEARISH else UNDEFINED.
+  Levels: latest confirmed unbroken swing HIGH (most recent CONFIRMED not BROKEN)
+          and swing LOW similarly. Maintained as stacks (sorted by bar_time).
+  Break: close exceeds level by buffer = min_break_atr * ATR[bar] (close-based, causal per bar).
+         For upside: close > swing_high.price + buffer
+         For downside: close < swing_low.price - buffer
+         A break consumes the broken swing (marks BROKEN) and updates bias:
+           if bias prior BULLISH/UNDEFINED and upside break → BOS BULL else CHOCH_BULL
+           if bias prior BEARISH/UNDEFINED and downside break → BOS BEAR else CHOCH_BEAR
+         For strict BOS vs CHOCH, CHOCH is when break flips bias.
+         We emit type BOS or CHOCH_BULL/CHOCH_BEAR accordingly.
+  No repaint: once structure event confirmed at close, never removed by future.
+"""
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from decimal import Decimal
 from datetime import datetime
 import pandas as pd
@@ -8,7 +30,7 @@ from gcis.ict.swings import Swing
 @dataclass
 class StructureEvent:
     event_id: str
-    type: str  # BOS, CHOCH
+    type: str  # BOS, CHOCH_BULL, CHOCH_BEAR (CHOCH generic also possible)
     direction: str  # BULL BEAR
     broken_swing_id: str
     broken_level: Decimal
@@ -17,102 +39,112 @@ class StructureEvent:
     bias_before: str
     bias_after: str
 
-def detect_structure(swings: List[Swing], df: pd.DataFrame, bos_buffer_atr: float = 0.10, atr_series=None) -> tuple[List[StructureEvent], str]:
-    """
-    Detect BOS/CHOCH. Bias UNDEFINED until >=2 highs and >=2 lows.
-    Level = latest confirmed unbroken swing high/low.
-    Break if close exceeds level by bos_buffer_atr * ATR.
-    """
+def detect_structure(
+    swings: List[Swing],
+    df: pd.DataFrame,
+    bos_buffer_atr: float = 0.10,
+    atr_series=None,
+) -> Tuple[List[StructureEvent], str]:
     if not swings:
         return [], "UNDEFINED"
-    # sort swings by confirmation time
     swings_sorted = sorted(swings, key=lambda s: s.confirmation_at)
-    highs = [s for s in swings_sorted if s.type=="HIGH" and s.status=="CONFIRMED"]
-    lows = [s for s in swings_sorted if s.type=="LOW" and s.status=="CONFIRMED"]
-    bias = "UNDEFINED"
-    if len(highs)>=2 and len(lows)>=2:
-        # initial bias from last two swings? Simplified: if last high higher than previous high => BULLISH else BEARISH?
-        # We'll start UNDEFINED then let events flip it.
-        bias = "UNDEFINED"
-    else:
+    highs = [s for s in swings_sorted if s.type == "HIGH" and s.status == "CONFIRMED"]
+    lows = [s for s in swings_sorted if s.type == "LOW" and s.status == "CONFIRMED"]
+    if len(highs) < 2 or len(lows) < 2:
         return [], "UNDEFINED"
-
-    events: List[StructureEvent] = []
-    broken_ids = set()
-    # keep unbroken highs/lows
-    # For each candle after last swing, check closes
     closes = df["close"].astype(float).values if not df.empty else []
     close_times = df["close_time"].values if not df.empty else []
-    opens = df["open_time"].values if not df.empty else []
-    # need mapping from swing to level
-    # Track latest unbroken high and low
-    latest_high = highs[-1] if highs else None
-    latest_low = lows[-1] if lows else None
-    # We'll iterate candles
     n = len(df)
+    # initial bias from last swings (deterministic)
     current_bias = "UNDEFINED"
-    # simple: determine current bias by last swing trend: if last swing is high higher than previous high -> BULLISH
-    if len(highs)>=2 and len(lows)>=2:
-        if highs[-1].price > highs[-2].price and lows[-1].price > lows[-2].price:
-            current_bias = "BULLISH"
-        elif highs[-1].price < highs[-2].price and lows[-1].price < lows[-2].price:
-            current_bias = "BEARISH"
-        else:
-            current_bias = "UNDEFINED"
+    if highs[-1].price > highs[-2].price and lows[-1].price > lows[-2].price:
+        current_bias = "BULLISH"
+    elif highs[-1].price < highs[-2].price and lows[-1].price < lows[-2].price:
+        current_bias = "BEARISH"
     else:
         current_bias = "UNDEFINED"
 
-    # For BOS/CHOCH, we need to walk candles and check breaks
-    # Use latest unbroken swing levels
-    unbroken_high = latest_high
-    unbroken_low = latest_low
-    # Keep list of unbroken (not yet broken)
+    # stacks of unbroken levels — most recent last
     unbroken_highs = highs.copy()
     unbroken_lows = lows.copy()
+    # keep pointer to latest unbroken (last in list)
+    events: List[StructureEvent] = []
+    broken_ids = set()
 
+    def _to_utc_ts(dt):
+        try:
+            return pd.to_datetime(dt, utc=True)
+        except:
+            return pd.to_datetime(str(dt), utc=True)
     for i in range(n):
         close = float(closes[i])
-        bar_time = pd.to_datetime(close_times[i]).to_pydatetime()
+        bar_time_raw = close_times[i]
+        bar_time = _to_utc_ts(bar_time_raw)
         atr = float(atr_series.iloc[i]) if atr_series is not None and i < len(atr_series) and not pd.isna(atr_series.iloc[i]) else 1.0
         buffer = bos_buffer_atr * atr
-        # check upside break
-        if unbroken_high and close > float(unbroken_high.price) + buffer:
-            # break
-            if current_bias in ("BULLISH","UNDEFINED"):
+
+        # only swings whose confirmation_at <= bar close are eligible to be broken (causal)
+        # we sort already, but ensure swing bar_time <= bar close time? swings confirmed after p+R, so a swing whose pivot is recent but not yet confirmed should not be breakable.
+        # Filter unbroken to only those with confirmation_at <= bar_time
+        # Build eligible latest — use UTC-aware compare to avoid naive/aware error
+        eligible_highs = [h for h in unbroken_highs if _to_utc_ts(h.confirmation_at) <= bar_time]
+        eligible_lows = [l for l in unbroken_lows if _to_utc_ts(l.confirmation_at) <= bar_time]
+        latest_high = eligible_highs[-1] if eligible_highs else None
+        latest_low = eligible_lows[-1] if eligible_lows else None
+
+        handled = False
+        # convert bar_time Timestamp to aware datetime for event
+        bar_time_dt = bar_time.to_pydatetime() if hasattr(bar_time, "to_pydatetime") else bar_time
+        if latest_high and close > float(latest_high.price) + buffer:
+            # upside break
+            bias_before = current_bias
+            if current_bias in ("BULLISH", "UNDEFINED"):
                 typ = "BOS"
                 new_bias = "BULLISH"
-            else:
-                typ = "CHOCH"
+            else:  # BEARISH -> flip
+                typ = "CHOCH_BULL"
                 new_bias = "BULLISH"
-                # This is CHOCH_BULL
-                if current_bias == "BEARISH":
-                    typ = "CHOCH_BULL"
-            ev = StructureEvent(event_id=f"bos-{i}-{unbroken_high.swing_id}", type=typ, direction="BULL", broken_swing_id=unbroken_high.swing_id, broken_level=unbroken_high.price, break_bar_time=bar_time, break_price=Decimal(str(close)), bias_before=current_bias, bias_after=new_bias)
+            ev = StructureEvent(
+                event_id=f"bos-{i}-{latest_high.swing_id}",
+                type=typ,
+                direction="BULL",
+                broken_swing_id=latest_high.swing_id,
+                broken_level=latest_high.price,
+                break_bar_time=bar_time_dt,
+                break_price=Decimal(str(close)),
+                bias_before=bias_before,
+                bias_after=new_bias,
+            )
             events.append(ev)
-            broken_ids.add(unbroken_high.swing_id)
-            # remove broken and set next
-            unbroken_highs = [h for h in unbroken_highs if h.swing_id != unbroken_high.swing_id]
-            unbroken_high = unbroken_highs[-1] if unbroken_highs else None
+            broken_ids.add(latest_high.swing_id)
+            unbroken_highs = [h for h in unbroken_highs if h.swing_id != latest_high.swing_id]
             current_bias = new_bias
-            continue
-        # downside break
-        if unbroken_low and close < float(unbroken_low.price) - buffer:
-            if current_bias in ("BEARISH","UNDEFINED"):
+            handled = True
+            # do not also check low break same bar (prioritise high break then next bar will handle low)
+        if not handled and latest_low and close < float(latest_low.price) - buffer:
+            bias_before = current_bias
+            if current_bias in ("BEARISH", "UNDEFINED"):
                 typ = "BOS"
                 new_bias = "BEARISH"
             else:
-                typ = "CHOCH"
+                typ = "CHOCH_BEAR"
                 new_bias = "BEARISH"
-                if current_bias == "BULLISH":
-                    typ = "CHOCH_BEAR"
-            ev = StructureEvent(event_id=f"bos-{i}-{unbroken_low.swing_id}", type=typ, direction="BEAR", broken_swing_id=unbroken_low.swing_id, broken_level=unbroken_low.price, break_bar_time=bar_time, break_price=Decimal(str(close)), bias_before=current_bias, bias_after=new_bias)
+            ev = StructureEvent(
+                event_id=f"bos-{i}-{latest_low.swing_id}",
+                type=typ,
+                direction="BEAR",
+                broken_swing_id=latest_low.swing_id,
+                broken_level=latest_low.price,
+                break_bar_time=bar_time_dt,
+                break_price=Decimal(str(close)),
+                bias_before=bias_before,
+                bias_after=new_bias,
+            )
             events.append(ev)
-            broken_ids.add(unbroken_low.swing_id)
-            unbroken_lows = [l for l in unbroken_lows if l.swing_id != unbroken_low.swing_id]
-            unbroken_low = unbroken_lows[-1] if unbroken_lows else None
+            broken_ids.add(latest_low.swing_id)
+            unbroken_lows = [l for l in unbroken_lows if l.swing_id != latest_low.swing_id]
             current_bias = new_bias
 
-    # mark broken
     for s in swings:
         if s.swing_id in broken_ids:
             s.status = "BROKEN"
