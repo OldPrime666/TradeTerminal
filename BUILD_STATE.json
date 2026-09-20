@@ -1,6 +1,6 @@
 {
-  "implementation_version": "0.1.12",
-  "current_phase": "P12",
+  "implementation_version": "0.1.13",
+  "current_phase": "P13",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
@@ -14,7 +14,7 @@
     "P09": "CODE_VERIFIED",
     "P10": "CODE_VERIFIED",
     "P11": "CODE_VERIFIED",
-    "P12": "NOT_STARTED",
+    "P12": "CODE_VERIFIED",
     "P13": "NOT_STARTED",
     "P14": "NOT_STARTED",
     "P15": "NOT_STARTED",
@@ -793,6 +793,56 @@
         "tests/unit/test_app_p11.py::test_no_forbidden_strings"
       ],
       "evidence": "no guaranteed profit"
+    },
+    "BKT-07": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_research_p12.py::test_walk_forward_splits_purge_embargo",
+        "test_walk_forward_run_and_oos"
+      ],
+      "evidence": "src/gcis/backtest/walk_forward.py purged CV"
+    },
+    "BKT-09": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_research_p12.py::test_monte_carlo_deterministic_and_pvalue"
+      ],
+      "evidence": "src/gcis/backtest/monte_carlo.py block bootstrap seed42"
+    },
+    "BKT-13": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_research_p12.py::test_confluence_basic"
+      ],
+      "evidence": "src/gcis/research/confluence.py Jaccard"
+    },
+    "STR-03": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_research_p12.py::test_str_extra_ema_deterministic_and_causal"
+      ],
+      "evidence": "src/gcis/strategies/extra.py EMA-CROSS v0.2.0"
+    },
+    "STR-04": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_research_p12.py::test_str_extra_donchian_and_rsi_contract"
+      ],
+      "evidence": "src/gcis/strategies/extra.py DONCHIAN"
+    },
+    "STR-05": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_research_p12.py::test_str_extra_donchian_and_rsi_contract"
+      ],
+      "evidence": "src/gcis/strategies/extra.py RSI-REV"
+    },
+    "STR-08": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_research_p12.py::test_str_extra_confluence_boost"
+      ],
+      "evidence": "src/gcis/strategies/extra.py CONFLUENCE"
     }
   },
   "operator_decisions": {
@@ -812,20 +862,20 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T19:42:44.771365+00:00",
-    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T19:42:32.443599+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [ 62%]\\n...........................................                              [100%]\\n=============================== warnings summary ===============================\\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\\n  \\n    self._warn_or_fail_if_strict(f\\\"Unknown config option: {key}\\\\n\\\")\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n\"}], \"all_ok\": true, \"duration_s\": 12.327771186828613, \"finished_at\": \"2026-09-20T19:42:44.771365+00:00\"}"
+    "timestamp": "2026-09-20T19:49:20.065354+00:00",
+    "log": "{\"mode\": \"post-install\", \"started_at\": \"2026-09-20T19:49:19.324476+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"live_candle_ingest\", \"ok\": false, \"detail\": \"unreachable (NO DATA): TLS/SSL connection has been closed (EOF) (_ssl.c:992)\"}], \"all_ok\": true, \"duration_s\": 0.7408797740936279, \"finished_at\": \"2026-09-20T19:49:20.065354+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P11 Full terminal — multipage UIX-02,05..13 + EXE-02 idempotency",
+  "current_file_group": "P12 Research I — walk-forward purge/embargo + Monte Carlo + STR-03/04/05/08 + confluence BKT-13",
   "pending_tasks": [
-    "P12-P22 Research/Hardening + P99 audit",
-    "P11 115 tests 9 invariants 18 caps verified",
-    "M0 v0.1 CODE COMPLETE — EMPIRICAL VALIDATION PENDING"
+    "P13-P22 Research/Hardening + P99 audit",
+    "P12 128 tests 9 invariants verified",
+    "M0 v0.1 + P11 + P12 CODE COMPLETE — EMPIRICAL_PENDING wall-time"
   ],
   "next_actions": [
-    "Next: PYTHONPATH=src python -m pytest tests/unit/test_app_p11.py -v  # 8 passed",
-    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 115 passed",
-    "Commit: git add -A && git commit -m 'P11 Full terminal CODE_VERIFIED' && git push origin arena/01a0bfdc-tradeterminal",
-    "Next phase: P12 Research I — walk-forward, Monte Carlo, STR-03/04/05/08"
+    "Next: PYTHONPATH=src python -m pytest tests/unit/test_research_p12.py -v  # 13 passed",
+    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 128 passed",
+    "Commit: git add -A && git commit -m 'P12 Research I CODE_VERIFIED' && git push origin arena/01a0bfdc-tradeterminal",
+    "Next phase: P13 Probability A — PRB-01..12 Empirical-Bayes, calibration, EV_lcb"
   ]
 }
