@@ -1,5 +1,6 @@
-# GLOBALCRYPTOICTSCANNER 2026 — default.yaml (Part 12)
-# All thresholds are design defaults — not empirically validated unless census/validation says so.
+# GLOBALCRYPTOICTSCANNER 2026 — default.yaml v3.0 Futures-first (Part 12)
+# All thresholds design defaults — not empirically validated unless census says otherwise.
+# HARD = config may only make stricter (needs code change to raise).
 
 time:
   internal_unit: microsecond_utc
@@ -13,34 +14,51 @@ freshness:
   candle_stale_after_bars: 2
   candle_grace_s: 5
   provider_secondary_stale_after_s: 900
+  mark_price_stale_after_s: 10
+  funding_stale_after_s: 900
 
 transport:
-  ws_min_connections: 2
+  ws_groups: [klines_1m, all_market, focus_set]
   ws_rotate_before_h: 23
   ws_rotation_overlap_s: 15
   ws_reconnect_backoff_s: [1, 2, 4, 8, 16, 30, 60]
-  ws_max_streams_per_conn: 200
+  ws_max_streams_per_conn: 180
+  ws_control_msgs_fraction: 0.6
   rest_rate_budget_fraction: 0.5
   http_timeout_s: 10
   http_retries: 3
   polling_fallback_interval_s: 5
   gap_backfill_max_bars: 1500
 
-universe:
-  quote_asset: USDT
-  symbols: [BTC, ETH, SOL, BNB, XRP, DOGE, ADA, AVAX, LINK, TON, SUI, PEPE]
-  require_status: TRADING
+universe:                                 # OD-01 / INV-25: NO symbol list, NO count cap
+  venue_chain: [binance_um, bybit_linear, okx_swap, hyperliquid]
+  active_venue: auto
+  contract_families: {linear: true, inverse: true}
+  contract_types: [PERPETUAL, DELIVERY_CURRENT, DELIVERY_NEXT]
+  analyze_tradfi: false
+  asset_class_overrides_file: config/asset_class_overrides.yaml
+  registry_refresh_s: 300
+  min_history_bars_to_analyse: 300
+  operator_exclusions: []
+
+trade_eligibility:
+  min_24h_quote_volume_usdt: 5000000
+  max_spread_bps: 15
+  min_listing_age_days: 14
+  min_open_interest_usdt: 1000000
 
 timeframes: [1m, 5m, 15m, 1h, 4h, 1d]
-analysis_timeframes:
-  trigger: 5m
-  setup: 15m
-  bias: 1h
-  htf: [4h, 1d]
+analysis_timeframes: {trigger: 5m, setup: 15m, bias: 1h, htf: [4h, 1d]}
+
+pg_window_bars:
+  1m: 4320
+  5m: 1500
+  15m: 1500
+  1h: 1500
+  4h: 1500
+  1d: 1500
 
 retention:
-  candles_1m_days_pg: 400
-  candles_5m_plus: unlimited
   parquet_archive: unlimited
   raw_wire_frames_days: 14
   quote_bars_days: 30
@@ -52,7 +70,10 @@ retention:
 
 backfill:
   initial_history_days_1m: 90
-  initial_history_5m_plus_days: 730
+  htf_warmup_extra_days: 400
+  priority_order: [open_positions, active_setups, liquidity_desc]
+  max_parallel_downloads: 4
+  disk_budget_gb: 200
 
 sessions:
   asia: {tz: Asia/Tokyo, start: "09:00", end: "15:00"}
@@ -100,7 +121,7 @@ ict:
 strategy:
   ict_a:
     enabled: true
-    direction: long_only_spot
+    directions: [LONG, SHORT]
     entry_zone: fvg_or_ob_retest
     stop_buffer_atr: 0.25
     tp1_r: 1.5
@@ -118,20 +139,24 @@ signal:
   outcome_tracker: {enabled: true, ambiguous_intrabar_policy: pessimistic}
 
 costs:
-  taker_fee_bps: 10
-  maker_fee_bps: 10
+  taker_fee_bps: 5
+  maker_fee_bps: 2
   slippage_bps_base: 2
   slippage_atr_fraction: 0.02
   max_round_trip_cost_to_stop_ratio: 0.25
 
 paper:
   starting_equity_usdt: 10000
+  margin_mode: ISOLATED
+  position_mode: ONE_WAY
+  default_leverage: 3
+  stop_trigger_price: LAST
   quote_bar_ms: 250
   latency_ms: 300
   limit_fill_requires_trade_through_ticks: 1
   partial_fills: true
   enforce_exchange_filters: true
-  fill_model_version: "paper-conservative-1"
+  fill_model_version: "paper-futures-conservative-1"
 
 execution:
   policy_paper: AUTO
@@ -145,20 +170,26 @@ risk:
   max_trades_per_day: 6
   max_concurrent_positions: 3
   max_open_worst_case_risk_pct: 1.5
-  max_per_symbol_risk_pct: 0.5
+  max_per_contract_risk_pct: 0.5
+  max_leverage_cap: 3
+  max_effective_leverage: 3
+  max_margin_utilization_pct: 50
+  block_entries_when_blind: true
   max_per_strategy_risk_pct: 1.0
   max_per_cluster_risk_pct: 1.0
   max_drawdown_lock_pct: 6.0
   max_consecutive_losses: 4
   cooldown_after_loss_min: 30
   cooldown_after_streak_min: 240
-  same_symbol_reentry_cooldown_min: 60
+  same_contract_reentry_cooldown_min: 60
   day_reset_utc: "00:00"
   min_order_notional_policy: skip_if_below_min
   sizing_buffer_bps: 5
 
 correlation:
-  static_groups: {majors: [BTC, ETH], l1: [SOL, AVAX, SUI, TON, ADA], memes: [DOGE, PEPE], exchange_token: [BNB], other: [XRP, LINK]}
+  default_cluster: MARKET_BETA
+  static_group_overrides: {}
+  market_beta_cluster_risk_pct: 1.0
   dynamic: {enabled: true, lookback_days: 30, return_timeframe: 1h, link_abs_rho: 0.70, min_overlap_bars: 200, insufficient_data: treat_as_correlated}
 
 locks:
@@ -173,7 +204,7 @@ kill_switch: {default_action: BLOCK_NEW_ENTRIES, close_positions_requires_separa
 
 probability:
   labeling: triple_barrier
-  tier_a: {estimator: empirical_bayes_beta_binomial, pooling: [strategy_regime_symbolgroup, strategy_regime, strategy, pooled], prior_strength_events: 20}
+  tier_a: {estimator: empirical_bayes_beta_binomial, pooling: [strategy_direction_regime_liquiditytier, strategy_direction_regime, strategy_direction, pooled], prior_strength_events: 20}
   tier_b: {estimator: regularized_logistic, min_events_per_feature: 15, max_features: 12}
   tier_c: {enabled: false, min_total_events: 2000}
   validation: {method: purged_kfold, k: 5, embargo_bars: 12, single_use_oos_lock: true, oos_fraction: 0.2}
@@ -193,7 +224,7 @@ backtest:
   monte_carlo: {block_size: 10, runs: 5000}
   walk_forward: {train_days: 180, test_days: 30, purge_bars: 24, embargo_bars: 12}
   baselines:
-    random_entry: {draws: 200, match_on: [symbol, direction, timeframe, stop_atr, target_r, holding_limit, session_regime_distribution]}
+    random_entry: {draws: 200, match_on: [contract, direction, timeframe, stop_atr, target_r, holding_limit, session_regime_distribution]}
     buy_and_hold: {exposure_matched: true}
     ema_cross: {fast: 9, slow: 21}
     time_shift_placebo: {shift_bars: [24, 96, 288]}
@@ -229,6 +260,48 @@ setup_score:
   weights: {htf_alignment: 20, liquidity_sweep_quality: 20, displacement_quality: 15, zone_quality: 15, regime_compat: 10, session_context: 5, volume_confirmation: 5, cost_efficiency: 10}
   grades: {A: 85, B: 70, C: 55}
 
+failover:
+  breaker: {open_after_consecutive_failures: 5, open_after_error_rate: 0.5, error_rate_window_s: 60, half_open_probe_every_s: 30}
+  failback_stable_s: 600
+  venue_switch_min_interval_s: 900
+  warmup_required_bars: 500
+  cross_venue_context: true
+  min_working_fallbacks_per_capability: 3
+  venue_chain: [binance_um, bybit_linear, okx_swap, hyperliquid]
+budgets:
+  monthly_quota_fraction: 0.4
+  coinalyze_calls_per_min: 24
+  coingecko_demo_calls_per_month: 4000
+  cmc_basic_calls_per_day: 130
+  coinpaprika_calls_per_month: 8000
+  coinlore_min_interval_s: 2
+  hyperliquid_weight_per_min: 600
+  bybit_requests_per_5s: 300
+  binance_futures_weight_per_min: 1200
+sources_file: config/sources.yaml
+
+futures:
+  liq_buffer_atr: 1.0
+  max_stop_fraction_of_liq_distance: 0.5
+  mmr_fallback: 0.01
+  max_funding_cost_fraction_of_R: 0.15
+  funding_lookback_for_estimate: 3
+  close_before_delivery_h: 2
+  min_hours_to_delivery_for_entry: 12
+  inverse_paper_execution: P1
+
+market_context:
+  benchmark_bases: [BTC, ETH]
+
+scale:
+  bundle_latency_budget_s: 20
+  analysis_worker_pool: auto
+  coverage_alert_ratio: 0.98
+  not_subscribed_grace_s: 120
+  focus_set: {max_depth_streams: 60, max_aggtrade_streams: 60, includes: [open_positions, armed_signals, operator_pins]}
+  signal_storm_threshold: 15
+  scanner_page_size: 100
+
 app:
   name: GLOBALCRYPTOICTSCANNER 2026
   mode: PAPER
@@ -236,9 +309,8 @@ app:
 
 database:
   url: "sqlite:///var/gcis.db"
-  # For PostgreSQL: "postgresql+psycopg://gcis:gcis@localhost:5432/gcis"
 
 exchange:
-  binance_rest_base: "https://data-api.binance.vision"
-  binance_ws_base: "wss://data-stream.binance.vision"
-  use_microseconds: true
+  binance_rest_base: "https://fapi.binance.com"
+  binance_ws_base: "wss://fstream.binance.com"
+  use_microseconds: false

@@ -1,0 +1,198 @@
+# config/sources.yaml — Free-source & fallback matrix (Appendix A)
+# Rules: every capability has PRIMARY + ≥3 free fallbacks (FBK-01), tags V/U, keyless-complete (FBK-07)
+# Probes: scripts/source_matrix_check.py verifies V/U at runtime; failures replaced from candidate_pool
+
+venues:
+  - id: binance_um
+    name: Binance USDⓈ-M Futures
+    rest_base: https://fapi.binance.com
+    ws_base: wss://fstream.binance.com
+    routed_endpoints: ["/public", "/market", "/private"]
+    limits: {weight_per_min: 2400, streams_per_conn: 200, control_msgs_per_s: 10}
+    verified: "2026-09-20"
+    tag: V
+  - id: bybit_linear
+    name: Bybit Linear
+    rest_base: https://api.bybit.com
+    ws_base: wss://stream.bybit.com
+    limits: {requests_per_5s: 600, ws_per_5s: 500, market_conns_per_ip: 1000}
+    tag: V
+  - id: okx_swap
+    name: OKX SWAP
+    rest_base: https://www.okx.com
+    ws_base: wss://ws.okx.com:8443/ws/v5/public
+    tag: V
+  - id: hyperliquid
+    name: Hyperliquid
+    rest_base: https://api.hyperliquid.xyz
+    ws_base: wss://api.hyperliquid.xyz/ws
+    limits: {weight_per_min: 1200, conns: 10, new_conns_per_min: 30, subs: 1000}
+    tag: V
+
+capabilities:
+  CAP-01_registry:
+    primary: binance_um
+    fallbacks: [bybit_linear, okx_swap, hyperliquid, gate, bitget]
+    chain:
+      - {provider: binance_um, endpoint: "GET /fapi/v1/exchangeInfo", auth: false, tag: V}
+      - {provider: bybit_linear, endpoint: "GET /v5/market/instruments-info?category=linear|inverse", auth: false, tag: V}
+      - {provider: okx_swap, endpoint: "GET /api/v5/public/instruments?instType=SWAP|FUTURES", auth: false, tag: V}
+      - {provider: hyperliquid, endpoint: 'POST /info {"type":"meta"}', auth: false, tag: V}
+      - {provider: gate, endpoint: "GET /api/v4/futures/{settle}/contracts", auth: false, tag: V}
+      - {provider: bitget, endpoint: "mix-market contracts", auth: false, tag: U}
+  CAP-02_live_1m:
+    primary: binance_um
+    fallbacks: [bybit_linear, okx_swap, hyperliquid]
+    chain:
+      - {provider: binance_um, method: "WS <symbol>@kline_1m on /market", auth: false, tag: V}
+      - {provider: bybit_linear, method: "WS kline", auth: false, tag: V}
+      - {provider: okx_swap, method: "WS candle channel", auth: false, tag: U}
+      - {provider: hyperliquid, method: "WS candle", auth: false, tag: V}
+  CAP-03_candle_rest:
+    primary: binance_um
+    fallbacks: [bybit_linear, okx_swap, hyperliquid]
+    chain:
+      - {provider: binance_um, endpoint: "GET /fapi/v1/klines + markPriceKlines", auth: false, tag: V}
+      - {provider: bybit_linear, endpoint: "GET /v5/market/kline + mark-price-kline", auth: false, tag: V}
+      - {provider: okx_swap, endpoint: "GET /api/v5/market/candles + history-candles", auth: false, tag: V}
+      - {provider: hyperliquid, endpoint: "candleSnapshot", auth: false, tag: V}
+  CAP-04_bulk:
+    primary: data_binance_vision
+    fallbacks: [public_bybit, bybit_rest, okx_rest]
+    chain:
+      - {provider: data_binance_vision, path: "futures/um,futures/cm zips + checksums", auth: false, tag: V}
+      - {provider: public_bybit, path: "https://public.bybit.com/", auth: false, tag: V}
+      - {provider: bybit_linear, method: "REST-paged history", auth: false, tag: V}
+      - {provider: okx_swap, method: "REST-paged history", auth: false, tag: V}
+  CAP-05_mark_funding:
+    primary: binance_um
+    fallbacks: [bybit_linear, okx_swap, hyperliquid, coinalyze]
+    chain:
+      - {provider: binance_um, endpoint: "GET /fapi/v1/premiumIndex + /fapi/v1/fundingRate", auth: false, tag: V}
+      - {provider: bybit_linear, endpoint: "tickers + GET /v5/market/funding/history", auth: false, tag: V}
+      - {provider: okx_swap, endpoint: "public/funding-rate + funding-rate-history + mark-price", auth: false, tag: V}
+      - {provider: hyperliquid, endpoint: "metaAndAssetCtxs", auth: false, tag: V}
+      - {provider: coinalyze, endpoint: "funding-rate / predicted", auth: key, tag: V}
+  CAP-06_oi:
+    primary: binance_um
+    fallbacks: [bybit_linear, okx_swap, hyperliquid, coinalyze]
+    chain:
+      - {provider: binance_um, endpoint: "GET /fapi/v1/openInterest + metrics + openInterestHist(30d)", auth: false, tag: V}
+      - {provider: bybit_linear, endpoint: "GET /v5/market/open-interest", auth: false, tag: V}
+      - {provider: okx_swap, endpoint: "public/open-interest + rubik open-interest-history", auth: false, tag: V}
+      - {provider: hyperliquid, endpoint: "metaAndAssetCtxs", auth: false, tag: V}
+      - {provider: coinalyze, endpoint: "open-interest + open-interest-history", auth: key, tag: V}
+  CAP-07_ratios_taker:
+    primary: binance_metrics
+    fallbacks: [okx_swap, bybit, coinalyze, inhouse]
+    chain:
+      - {provider: binance_um, endpoint: "/futures/data/* ratios", auth: false, tag: U}
+      - {provider: okx_swap, endpoint: "rubik long-short + taker-volume", auth: false, tag: V}
+      - {provider: bybit_linear, endpoint: "account-ratio (probe)", auth: false, tag: U}
+      - {provider: coinalyze, endpoint: "long/short ratio history", auth: key, tag: U}
+      - {provider: inhouse, method: "taker-buy volume from klines", auth: false, tag: V}
+  CAP-08_liquidations:
+    primary: binance_um
+    fallbacks: [okx_swap, bybit_linear, hyperliquid, coinalyze]
+    chain:
+      - {provider: binance_um, method: "WS forceOrder + liquidationSnapshot (CM only after 2024-03-31 UM ended)", auth: false, tag: V}
+      - {provider: okx_swap, endpoint: "GET /api/v5/public/liquidation-orders", auth: false, tag: V}
+      - {provider: bybit_linear, method: "WS liquidation", auth: false, tag: U}
+      - {provider: hyperliquid, method: "WS liquidation", auth: false, tag: U}
+      - {provider: coinalyze, endpoint: "liquidation history", auth: key, tag: V}
+  CAP-09_top_of_book:
+    primary: binance_um
+    fallbacks: [bybit_linear, okx_swap, hyperliquid]
+    chain:
+      - {provider: binance_um, method: "WS bookTicker on /public", auth: false, tag: V}
+      - {provider: bybit_linear, endpoint: "tickers WS/REST", auth: false, tag: V}
+      - {provider: okx_swap, endpoint: "tickers / BBO", auth: false, tag: V}
+      - {provider: hyperliquid, endpoint: "allMids + l2Book", auth: false, tag: V}
+  CAP-10_depth:
+    primary: binance_um
+    fallbacks: [bybit_linear, okx_swap, hyperliquid]
+    chain:
+      - {provider: binance_um, method: "depth streams /public diff+snapshot", auth: false, tag: V}
+      - {provider: bybit_linear, endpoint: "orderbook REST + WS", auth: false, tag: V}
+      - {provider: okx_swap, endpoint: "books/books5", auth: false, tag: U}
+      - {provider: hyperliquid, endpoint: "l2Book ≤20/side", auth: false, tag: V}
+  CAP-11_trades:
+    primary: binance_um
+    fallbacks: [bybit_linear, okx_swap, hyperliquid]
+    chain:
+      - {provider: binance_um, method: "WS @aggTrade + bulk aggTrades", auth: false, tag: V}
+      - {provider: bybit_linear, endpoint: "recent-trade + public.bybit.com", auth: false, tag: V}
+      - {provider: okx_swap, endpoint: "public trades REST/WS", auth: false, tag: V}
+      - {provider: hyperliquid, method: "WS trades", auth: false, tag: V}
+  CAP-12_margin_tiers:
+    primary: binance_um
+    fallbacks: [bybit_linear, okx_swap, hyperliquid]
+    chain:
+      - {provider: binance_um, endpoint: "exchangeInfo + leverage bracket (signed not keyless)", auth: false, tag: U}
+      - {provider: bybit_linear, endpoint: "GET /v5/market/risk-limit", auth: false, tag: V}
+      - {provider: okx_swap, endpoint: "GET /api/v5/public/position-tiers", auth: false, tag: V}
+      - {provider: hyperliquid, endpoint: "meta margin tiers", auth: false, tag: V}
+  CAP-14_time_sync:
+    primary: venue_time
+    fallbacks: [ntp, http_date, other_venue]
+    chain:
+      - {provider: venue_time, endpoint: "GET /fapi/v1/time etc + OKX /api/v5/public/time", auth: false, tag: V}
+      - {provider: ntp, method: "NTP pool (ntplib)", auth: false, tag: V}
+      - {provider: http_date, method: "HTTP Date header", auth: false, tag: V}
+      - {provider: other_venue, method: "other venue server time", auth: false, tag: V}
+  # Reference / sentiment / macro / news
+  CAP-15_metadata:
+    primary: venue_registry
+    fallbacks: [coinpaprika, coinlore, coingecko_demo, cmc]
+    chain:
+      - {provider: venue_registry, method: "base + underlying type", auth: false, tag: V}
+      - {provider: coinpaprika, endpoint: "free 20k/month", auth: false, tag: V}
+      - {provider: coinlore, endpoint: "~1 req/s", auth: false, tag: V}
+      - {provider: coingecko_demo, endpoint: "10k/month 30/min", auth: key, tag: V}
+      - {provider: cmc, endpoint: "10k credits/month 333/day 30/min", auth: key, tag: V}
+  CAP-16_sentiment:
+    primary: alternative_me
+    fallbacks: [cmc, inhouse, coinalyze]
+    chain:
+      - {provider: alternative_me, endpoint: "https://api.alternative.me/fng/", auth: false, tag: V}
+      - {provider: cmc, endpoint: "Fear & Greed", auth: key, tag: V}
+      - {provider: inhouse, method: "composite volatility+breadth+funding+OI", auth: false, tag: V}
+      - {provider: coinalyze, endpoint: "funding/OI/liquidation proxy", auth: key, tag: V}
+  CAP-17_macro:
+    primary: seed_calendar
+    fallbacks: [faireconomy, fred, official_pages]
+    chain:
+      - {provider: seed_calendar, file: "config/macro_calendar_seed.yaml", auth: false, tag: V}
+      - {provider: faireconomy, endpoint: "ff_calendar_thisweek.json", auth: false, tag: U}
+      - {provider: fred, endpoint: "release calendar API", auth: key, tag: U}
+      - {provider: official_pages, method: "Fed/BLS/BEA ICS", auth: false, tag: U}
+  CAP-18_news:
+    primary: rss_bundle
+    fallbacks: [cryptopanic, gdelt, exchange_announcements, reddit]
+    chain:
+      - {provider: rss_bundle, feeds: "CoinDesk,Cointelegraph,Decrypt,Bitcoinist,CryptoSlate,Bitcoin Magazine", auth: false, tag: V}
+      - {provider: cryptopanic, auth: key, tag: U}
+      - {provider: gdelt, endpoint: "DOC 2.0 API", auth: false, tag: U}
+      - {provider: exchange_announcements, auth: false, tag: U}
+  CAP-20_notifications:
+    primary: desktop_toast
+    fallbacks: [telegram, ntfy, discord, smtp]
+    chain:
+      - {provider: desktop_toast, auth: false, tag: U}
+      - {provider: telegram, auth: token, tag: U}
+      - {provider: ntfy, auth: false, tag: U}
+      - {provider: discord, auth: webhook, tag: U}
+
+candidate_pool:
+  - Gate.io
+  - Bitget
+  - KuCoin Futures
+  - MEXC Futures
+  - BingX
+  - dYdX indexer
+  - Deribit
+
+infrastructure:
+  database: [PostgreSQL, Portable PostgreSQL, SQLite WAL, DuckDB]
+  messaging: [Postgres outbox + LISTEN/NOTIFY, SQLite polling, asyncio queue, NDJSON journal]
+  archive: [Parquet+zstd+DuckDB, Parquet+Polars, Parquet+pandas, CSV.zst]

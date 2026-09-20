@@ -29,6 +29,8 @@ dependencies = [
   "tzdata==2024.2",
   "keyring==25.5.0",
   "python-dateutil==2.9.0.post0",
+  "orjson==3.10.11",
+  "ntplib==0.4.0",
 ]
 
 [project.optional-dependencies]

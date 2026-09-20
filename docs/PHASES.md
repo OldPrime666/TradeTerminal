@@ -1,4 +1,7 @@
-# PHASES.md — Implementation Phases (11 + 13)
+# PHASES.md — Implementation Phases (v3.0 Futures-first: P00–P11 = M0 v0.1 + P12–P22 + P99)
+
+> **v3.0 2026-09-20:** P0 now split into P00 Foundations skeleton through P11 Minimal UI encompassing whole-universe futures+Paper; P1–P3 extend to P22 (walk-forward → DOM → Live testnet) + P99 audit. Each capability needs ≥3 free fallbacks (FBK-01) to leave P00. Universe dynamic uncapped (INV-25). Scale ARC-20, futures gates FUT-01..09.
+
 
 ## 11.0 Definition of Done (every phase)
 1. Every REQ in phase implemented + at least one test (or TEST_EXEMPT) → traceability updated

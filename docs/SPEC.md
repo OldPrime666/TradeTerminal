@@ -1,6 +1,17 @@
-# docs/SPEC.md — Parts 2–10 (condensed from Master Prompt v2.0)
+# docs/SPEC.md — Parts 2–10 (condensed from Master Prompt v3.0 Futures-first 2026-09-20)
 
-This is the spec mirror for agents: every requirement ID has single line. Full Master Prompt is source of truth (root prompt). This file is kept short for session loading; implementers read Master Prompt Part quoted in AGENTS.md plus this index.
+> **Master Prompt v3.0 is single source of truth (Parts 0–13 + Appendix A).** Futures-first: every tradable futures contract on active venue, dynamic uncapped (INV-25), free-only ≥3 fallbacks (Appendix A, config/sources.yaml), failover FBK-01..10, no hard-coded list. This file mirrors v2 then amends v3 deltas.
+
+This is the spec mirror for agents: every requirement ID has single line. Full Master Prompt v3.0 is source of truth. This file is kept short for session loading; implementers read Master Prompt Part quoted in AGENTS.md plus this index.
+
+## v3.0 deltas vs v2 (apply on top)
+- **Universe (v3 Part 4 DAT-18/19/02):** venue.contract_registry → every futures contract (TRADING) on active venue, fields: venue/symbol/underlying/base_pointer/instrument_type/contract_family/settlement_asset/status/margin_asset/tick/lot. No whitelist caps (INV-25), asset_class tags, coverage_reports DAT-19, GC by contract_lifecycle_rules.
+- **Failover (FBK-01..10, Appendix A):** each CAP-01..20 rank PRIMARY + ≥3 free fallbacks (V/U) via config/sources.yaml; controller circuit-breaker/venue warm-up/hysteresis/budget ≤40%; keyless completeness FBK-07; daily reprobe; candidate_pool. Never circumvent geo-block (INV-14/SEC-09 → RESTRICTED).
+- **Venues routed:** Binance UM primary (P1 → Bybit→OKX→Hyperliquid→Gate/Bitget chain), WS routed /public /market (≤200 streams/conn, 24h rotation), bulk via data.binance.vision + public.bybit.com.
+- **Futures mechanics (FUT-01..09, DAT-12:5, OPS-09:6):** mark/premium/funding per interval, margin tiers/isolation+hedge modes, liquidation on mark+buffer 0.5×liq-distance+1 ATR (FUT-03), inverse PnL, contract lifecycle/expiry/funding timer, effective leverage, market-beta cluster.
+- **Scale (ARC-20):** 1m base parquets only (HTF derived, checked), sharded WS by streams/conn, incremental engine (only affected contracts), prioritised scheduling (landing-scanner-level2+derivatives, in-risk-set), bundle budget 20s → ANALYSIS_LAG (never silent skip); NOT_SUBSCRIBED status.
+- **Tiers:** P0 skeleton now P00–P11 = M0 v0.1 whole-universe futures+Paper (was P0–P10); P1–P3 up to P22 + P99 audit. LEV HARD 3 default / 10 HARD_MAX (FUT-02).
+
 
 ## Part 2 Scope/tiers
 - P0 skeleton v0.1: real data (history+live) → candles/indicators/sessions → MarketView → ICT detectors → regime v1 → ICT-A → gates/fusion/lifecycle → risk → Paper → outcomes → backtest+baselines+census → supervisor/health → minimal read-only UI + kill switch → .bat+verify

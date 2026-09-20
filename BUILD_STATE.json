@@ -1,5 +1,5 @@
 {
-  "implementation_version": "0.1.0",
+  "implementation_version": "0.1.1",
   "current_phase": "P01",
   "phases": {
     "P00": "CODE_VERIFIED",
@@ -23,17 +23,30 @@
     "P18": "NOT_STARTED",
     "P19": "NOT_STARTED",
     "P20": "NOT_STARTED",
+    "P21": "NOT_STARTED",
+    "P22": "NOT_STARTED",
     "P99": "NOT_STARTED"
   },
   "environment": {
     "os": "Linux 6.1.158+ (#1 SMP PREEMPT_DYNAMIC Mon May 11 18:48:24 UTC 2026) - Linux-6.1.158+-x86_64-with-glibc2.36",
     "python": "3.11.2 (main, Apr  8 2026, 01:58:00) [GCC 12.2.0]",
-    "python_executable": "/usr/bin/python3",
+    "python_executable": "/usr/bin/python",
     "postgres": "unknown_no_client",
-    "network_binance": "tcp_reachable_but_tls_failed",
-    "network_pypi": "reachable",
+    "network_venues": {
+      "binance_um": "tcp_ok_but_tls_failed:SSLZeroReturnError",
+      "binance_cm": "tcp_ok_but_tls_failed:SSLZeroReturnError",
+      "bybit": "tcp_ok_but_tls_failed:SSLZeroReturnError",
+      "okx": "tcp_ok_but_tls_failed:SSLZeroReturnError",
+      "hyperliquid": "tcp_ok_but_tls_failed:SSLZeroReturnError",
+      "data_binance_vision": "tcp_ok_but_tls_failed:SSLZeroReturnError",
+      "public_bybit": "tcp_ok_but_tls_failed:SSLZeroReturnError",
+      "coinpaprika": "tcp_ok_but_tls_failed:SSLZeroReturnError",
+      "alternative_me": "tcp_ok_but_tls_failed:SSLZeroReturnError"
+    },
+    "network_binance": "tcp_ok_but_tls_failed:SSLZeroReturnError",
+    "network_pypi": "reachable:200",
     "disk_free_gb": 18.45,
-    "probed_at": "2026-09-20T17:33:58.025363+00:00"
+    "probed_at": "2026-09-20T17:46:39.121212+00:00"
   },
   "requirements": {
     "ARC-01": {
@@ -115,34 +128,36 @@
     }
   },
   "operator_decisions": {
-    "OD-01": "BTC ETH SOL XRP DOGE BNB ADA AVAX LINK TON SUI PEPE -> Binance Spot <BASE>USDT",
-    "OD-02": "10 bps per side",
-    "OD-03": "Part 12 conventions",
+    "OD-01": "all crypto futures contracts listed as tradable on active venue (Binance UM default) — dynamic, no cap (INV-25)",
+    "OD-02": "futures taker 5 bps, maker 2 bps + slippage + funding (U)",
+    "OD-03": "Part 12 session conventions (not validated)",
     "OD-04": "00:00 UTC",
     "OD-05": "10000 USDT",
     "OD-06": "local PostgreSQL or SQLite fallback",
-    "OD-07": "Binance public market data (no API key), NO DATA if unreachable",
+    "OD-07": "free public market data only — failover Binance UM → Bybit → OKX → Hyperliquid → further (Appendix A); geo→failover, never circumvent; all fail→NO DATA",
     "OD-08": "Live disabled",
-    "OD-09": "Paper AUTO EXPERIMENTAL; Live SEMI_AUTO"
+    "OD-09": "Paper AUTO EXPERIMENTAL; Live SEMI_AUTO",
+    "OD-10": "FUTURES linear perp first; leverage 3x ISOLATED one-way; long+short in Research/Paper"
   },
   "assumptions": [],
   "known_failures": [],
   "last_verify": {
-    "command": "python -m gcis.cli verify --quick",
+    "command": "verify --quick",
     "exit_code": 0,
-    "timestamp": "2026-09-20T17:36:01.359945+00:00",
-    "log": "{\"mode\": \"quick\", \"started_at\": \"2026-09-20T17:34:42.655470+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n\\n/usr/bin/python3: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"................                                                         [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 1.0659422874450684, \"finished_at\": \"2026-09-20T17:34:43.721411+00:00\"}"
+    "timestamp": "2026-09-20T17:47:52.275719+00:00",
+    "log": "{\"mode\": \"quick\", \"started_at\": \"2026-09-20T17:47:51.176978+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"................                                                         [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 1.0976340770721436, \"finished_at\": \"2026-09-20T17:47:52.274612+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P00 bootstrap",
+  "current_file_group": "v3 migration",
   "pending_tasks": [
-    "P01 universe registry from exchangeInfo",
-    "P02 historical loader full zip+parquet",
-    "P03 WS transport live test"
+    "Migrate config/default.yaml to v3 futures + sources.yaml",
+    "Migrate contract registry from symbol list to dynamic (INV-25)",
+    "Upgrade risk with leverage/liquidation/funding (INV-27)",
+    "Implement failover chains per Appendix A (FBK)"
   ],
   "next_actions": [
-    "Implement P01 gateway + universe contract tests",
-    "Run download-history when Binance reachable",
-    "Populate candles and re-run census"
+    "Run scripts/env_probe.py v3 (all venues)",
+    "Create config/sources.yaml + DATA_SOURCE_MATRIX.md",
+    "Update core enums + persistence for futures"
   ]
 }

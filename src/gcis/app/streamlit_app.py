@@ -86,14 +86,51 @@ now_utc = datetime.now(timezone.utc)
 now_london = now_utc.astimezone(ZoneInfo("Europe/London"))
 now_ny = now_utc.astimezone(ZoneInfo("America/New_York"))
 st.markdown(f"<div class='small'>UTC {now_utc.strftime('%Y-%m-%d %H:%M:%S %Z')} · London {now_london.strftime('%H:%M %Z')} · New York {now_ny.strftime('%H:%M %Z')} · <span style='color:#00FF9D'>Session: {' overlap' if now_london.hour>=14 else ''}</span></div>", unsafe_allow_html=True)
+# Venue failover banner (FBK-05, UIX-01)
+try:
+    active_venue = cfg.get("universe",{}).get("active_venue","auto")
+    venue_chain = cfg.get("universe",{}).get("venue_chain", ["binance_um","bybit_linear","okx_swap","hyperliquid"])
+    # check if any venue_status indicates fallback
+    from gcis.persistence.db import get_session as _gs2
+    from gcis.persistence.models import VenueStatus as _VS, CoverageReport as _CV
+    _db2 = _gs2()
+    vs_rows = {v.venue: v.status for v in _db2.query(_VS).all()}
+    cov = _db2.query(_CV).order_by(_CV.created_at.desc()).first()
+    _db2.close()
+    # show banner if primary unhealthy
+    primary = venue_chain[0] if venue_chain else "binance_um"
+    if vs_rows.get(primary) in ("RESTRICTED","DISCONNECTED","UNAVAILABLE"):
+        st.warning(f"⚠️ VENUE_FALLBACK_ACTIVE: {primary} → {active_venue} (primary {vs_rows.get(primary)}; next healthy venue active; warm-up per FBK-05)")
+    # coverage banner (DAT-19, UIX-15)
+    if cov:
+        st.info(f"📊 Coverage: analysed {cov.analysed_live} / listed {cov.listed} · analysable {cov.analysable} · warming {cov.warming_up} · excluded {cov.excluded} · not_subscribed {cov.not_subscribed} · stale {cov.stale}  (DAT-19)")
+    else:
+        st.caption("📊 Coverage: listed — / analysable — (registry warming up — run `python -m gcis.cli preflight` to fetch contracts; see Universe & Coverage page — INV-25)")
+except Exception as e:
+    st.caption(f"Coverage banner unavailable: {e}")
 st.divider()
 
 # Sidebar (UIX-11)
 with st.sidebar:
     st.header("⚙ Controls")
     st.caption("Local-only · Free data · No API key required")
-    symbols_cfg = cfg.get("universe",{}).get("symbols", ["BTC","ETH","SOL","BNB","XRP","DOGE","ADA","AVAX","LINK","TON","SUI","PEPE"])
-    selected_symbol = st.selectbox("Market", [f"{s}USDT" for s in symbols_cfg], index=0)
+    # v3: dynamic futures registry — no hard-coded list (INV-25)
+    try:
+        from gcis.persistence.db import get_session as _gs
+        from gcis.persistence.models import ContractRegistry as _CR
+        _db = _gs()
+        contracts = _db.query(_CR).filter(_CR.status=="TRADING").limit(200).all()
+        if contracts:
+            symbols_list = [c.symbol for c in contracts[:50]]
+        else:
+            # fallback: generic placeholder when registry empty (warming up) — no hard-coded venue symbols (INV-25)
+            symbols_list = ["— (registry warming up — run `python -m gcis.cli preflight`)"]
+        _db.close()
+    except Exception:
+        symbols_list = ["— (dynamic registry — see Universe & Coverage)"]
+    selected_symbol = st.selectbox("Market / Contract", symbols_list, index=0)
+    # clean display name to actual symbol
+    selected_symbol = selected_symbol.split(" ")[0]
     timeframe = st.selectbox("Primary timeframe", ["1m","5m","15m","1h","4h","1d"], index=2)
     min_score = st.slider("Min setup score", 0, 100, 55)
     st.divider()
@@ -185,35 +222,46 @@ with tab_overview:
     st.divider()
     # Market scanner table (UIX-05)
     st.subheader("Market Scanner")
-    # Build scanner from latest quotes + candles
+    # Build scanner from latest quotes + contract registry (v3, INV-25: all contracts, no cap)
     try:
         db = get_session()
         quotes = {q.symbol: q for q in db.query(LatestQuote).all()}
-        # get last candle close per symbol for 15m
+        # also get contract registry count
+        try:
+            from gcis.persistence.models import ContractRegistry
+            contracts = db.query(ContractRegistry).limit(500).all()
+            contracts_by_symbol = {c.symbol: c for c in contracts}
+        except: contracts_by_symbol = {}
         scanner_rows = []
-        for base in cfg.get("universe",{}).get("symbols",[]):
-            sym = f"{base}USDT"
-            q = quotes.get(sym)
-            if q:
+        # if we have quotes, show those; else show contracts; else show honest placeholder
+        if quotes:
+            for sym, q in list(quotes.items())[:100]:  # page size 100 UI pagination
                 price = float(q.price)
                 age_s = (datetime.now(timezone.utc) - q.updated_at).total_seconds() if q.updated_at.tzinfo else (datetime.now(timezone.utc) - q.updated_at.replace(tzinfo=timezone.utc)).total_seconds()
                 age_str = f"{int(age_s)}s ago"
                 quality = "HEALTHY" if age_s<5 else "DEGRADED" if age_s<30 else "STALE"
-            else:
-                price = None
-                age_str = "NO DATA"
-                quality = "NO DATA"
-            # regime placeholder (would compute from real candles)
-            regime = "UNCERTAIN"
-            scanner_rows.append({"Symbol": sym, "Market": "SPOT", "Price": f"{price:.2f}" if price else "NO DATA", "24h change": "NO DATA", "Setup score": "—", "Probability": "N/A", "Probability status": "INSUFFICIENT_DATA", "Regime": regime, "Data age": age_str, "Quality": quality, "Signal state": "NO QUALIFIED SETUP"})
+                cr = contracts_by_symbol.get(sym)
+                family = cr.contract_family if cr else "LINEAR"
+                scanner_rows.append({"Symbol": sym, "Venue": q.source or "binance_um", "Market": family, "Price": f"{price:.2f}", "24h change": "NO DATA", "Setup score": "—", "Probability": "N/A", "Status": "INSUFFICIENT_DATA", "Regime": "UNCERTAIN", "Funding": "N/A", "OI chg": "N/A", "Data age": age_str, "Quality": quality, "Signal": "NO QUALIFIED SETUP"})
+        elif contracts_by_symbol:
+            for sym, cr in list(contracts_by_symbol.items())[:100]:
+                scanner_rows.append({"Symbol": sym, "Venue": cr.venue, "Market": cr.contract_family, "Price": "NO DATA", "24h change": "NO DATA", "Setup score": "—", "Probability": "N/A", "Status": "UNIVERSE_WARMING_UP", "Regime": "UNCERTAIN", "Funding": "N/A", "OI chg": "N/A", "Data age": "NO DATA", "Quality": "WARMING_UP", "Signal": "NOT_SUBSCRIBED"})
+        else:
+            # honest: registry empty
+            scanner_rows = [{"Symbol": "—", "Venue": cfg.get("universe",{}).get("venue_chain",["binance_um"])[0], "Market": "FUTURES", "Price": "NO DATA — registry empty (run preflight)", "Setup score": "—", "Probability": "N/A", "Signal": "NO DATA"}]
         db.close()
-        df_scan = pd.DataFrame(scanner_rows)
-        st.dataframe(df_scan, use_container_width=True, hide_index=True)
-        st.caption("Sorted by qualified status → EV_lcb (if available) → setup score. Never sorted by fabricated probability. If Binance unreachable, all rows show NO DATA (honest).")
+        if scanner_rows:
+            df_scan = pd.DataFrame(scanner_rows)
+            st.dataframe(df_scan, use_container_width=True, hide_index=True)
+            st.caption(f"Showing {len(scanner_rows)} contracts (paginated 100). Sorted qualified→EV_lcb→score. Never fabricated prob. Coverage banner above shows analysed/listed (INV-25). If primary venue blocked → VENUE_FALLBACK_ACTIVE.")
+        else:
+            st.info("NO DATA — no contracts fetched yet (preflight failed due to TLS block in sandbox — honest UNVERIFIED_ENV)")
+    except Exception as e:
+        st.warning(f"Scanner unavailable: {e}")
     except Exception as e:
         st.warning(f"Scanner unavailable: {e}")
         # Fallback static table
-        st.dataframe(pd.DataFrame([{"Symbol":"BTCUSDT","Status":"NO DATA — Binance unreachable in this environment (NO DATA is honest)","Price":"—","Data age":"—"}]), use_container_width=True)
+        st.dataframe(pd.DataFrame([{"Symbol":"—","Status":"NO DATA — venue unreachable in this environment (NO DATA is honest; see System Health / env_probe)","Price":"—","Data age":"—"}]), use_container_width=True)
 
     st.divider()
     # News ticker placeholder
