@@ -1,6 +1,6 @@
 from decimal import Decimal
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Union
 
 def paper_fill_market(requested_price: Decimal, bid: Decimal, ask: Decimal, config: dict, is_buy: bool) -> dict:
     """
@@ -48,3 +48,21 @@ def evaluate_exits(position: dict, quote_bar: dict, config: dict) -> Optional[st
     if hit_tp2:
         return "TP2"
     return None
+
+def paper_fill_limit(entry: Decimal, quote_low: Decimal, quote_high: Decimal, direction: str, tick_size: Decimal) -> bool:
+    """
+    Limit fill requires trade-through of 1 tick (conservative).
+    LONG buy limit: need quote_low <= entry - tick
+    SHORT sell limit: need quote_high >= entry + tick
+    """
+    try:
+        e = Decimal(str(entry))
+        low = Decimal(str(quote_low))
+        high = Decimal(str(quote_high))
+        tick = Decimal(str(tick_size))
+    except:
+        return False
+    if direction == "LONG":
+        return low <= (e - tick)
+    else:  # SHORT
+        return high >= (e + tick)

@@ -16,7 +16,12 @@ class RiskManager:
         """
         Returns RiskCheckResult dict: allowed, reason_code, etc.
         Enforces INV-09 hard caps and Part12 defaults.
+        is_close intent bypasses new-entry blocks (RSK-06 separate close).
         """
+        # Close intents allowed even if kill active / daily lock (separate command)
+        if intent.get("is_close"):
+            # still enforce hard caps not relevant for close? allow
+            return {"allowed": True, "reason_code": None, "detail": "close allowed despite kill/daily lock"}
         reason = None
         risk_cfg = self.config.get("risk",{})
         risk_pct = Decimal(str(risk_cfg.get("risk_per_trade_pct", 0.25)))

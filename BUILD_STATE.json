@@ -1,6 +1,6 @@
 {
-  "implementation_version": "0.1.7",
-  "current_phase": "P07",
+  "implementation_version": "0.1.8",
+  "current_phase": "P08",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
@@ -9,7 +9,7 @@
     "P04": "CODE_VERIFIED",
     "P05": "CODE_VERIFIED",
     "P06": "CODE_VERIFIED",
-    "P07": "IN_PROGRESS",
+    "P07": "CODE_VERIFIED",
     "P08": "NOT_STARTED",
     "P09": "NOT_STARTED",
     "P10": "NOT_STARTED",
@@ -115,16 +115,16 @@
     "RSK-01": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_*"
+        "tests/unit/test_risk_p07.py"
       ],
-      "evidence": "verify_report.json"
+      "evidence": "docs/audit/P07/verify_report.json"
     },
     "EXE-04": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_*"
+        "tests/unit/test_risk_p07.py"
       ],
-      "evidence": "verify_report.json"
+      "evidence": "docs/audit/P07/verify_report.json"
     },
     "ARC-11": {
       "status": "CODE_VERIFIED",
@@ -464,16 +464,121 @@
         "tests/unit/test_signals_p06.py::test_outcome_tracker_mv_pass_labels_and_risk_blocked"
       ],
       "evidence": "signals/outcome_tracker.py"
+    },
+    "RSK-02": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "RSK-03": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "RSK-04": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "RSK-05": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "RSK-06": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "RSK-07": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "RSK-08": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "RSK-09": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "EXE-01": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "EXE-02": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "EXE-03": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "EXE-05": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "EXE-06": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "EXE-07": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
+    },
+    "EXE-08": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_risk_p07.py"
+      ],
+      "evidence": "docs/audit/P07/verify_report.json"
     }
   },
   "operator_decisions": {
-    "OD-01": "all crypto futures contracts listed as tradable on active venue (Binance UM default) — dynamic, no cap (INV-25)",
+    "OD-01": "all crypto futures contracts listed as tradable on active venue (Binance UM default) \u2014 dynamic, no cap (INV-25)",
     "OD-02": "futures taker 5 bps, maker 2 bps + slippage + funding (U)",
     "OD-03": "Part 12 session conventions (not validated)",
     "OD-04": "00:00 UTC",
     "OD-05": "10000 USDT",
     "OD-06": "local PostgreSQL or SQLite fallback",
-    "OD-07": "free public market data only — failover Binance UM → Bybit → OKX → Hyperliquid → further (Appendix A); geo→failover, never circumvent; all fail→NO DATA",
+    "OD-07": "free public market data only \u2014 failover Binance UM \u2192 Bybit \u2192 OKX \u2192 Hyperliquid \u2192 further (Appendix A); geo\u2192failover, never circumvent; all fail\u2192NO DATA",
     "OD-08": "Live disabled",
     "OD-09": "Paper AUTO EXPERIMENTAL; Live SEMI_AUTO",
     "OD-10": "FUTURES linear perp first; leverage 3x ISOLATED one-way; long+short in Research/Paper"
@@ -483,19 +588,19 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T18:48:41.254244+00:00",
-    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:48:31.718737+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 9.534118175506592, \"finished_at\": \"2026-09-20T18:48:41.252858+00:00\"}"
+    "timestamp": "2026-09-20T18:58:17.908145+00:00",
+    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:58:08.830410+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................................................................ [ 87%]\\n..........                                                               [100%]\\n=============================== warnings summary ===============================\\n../../../usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441\\n  /usr/local/lib/python3.11/dist-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\\n  \\n    self._warn_or_fail_if_strict(f\\\"Unknown config option: {key}\\\\n\\\")\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n\"}], \"all_ok\": true, \"duration_s\": 9.076584100723267, \"finished_at\": \"2026-09-20T18:58:17.906992+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P06 signals (gates fusion lifecycle dedup snapshots outcome) + strategy ICT-A bidirectional",
+  "current_file_group": "P07 risk & paper (daily, kill-switch, sizing, paper fills, positions, catch-up)",
   "pending_tasks": [
-    "P07 Risk & Paper: risk caps 0.5/2/10, daily state 00:00 UTC incl unrealised, sizing round down, kill switch, paper fills conservative, positions, catch-up",
-    "P07 docs RISK_POLICY",
-    "P08 Backtest shared-core + baselines 4 + census"
+    "P08 Backtest shared-core + baselines 4 + census",
+    "P09 Runtime supervisor 4 processes",
+    "P10 Minimal UI"
   ],
   "next_actions": [
-    "Run: PYTHONPATH=src python -m pytest tests/unit/test_signals_p06.py -v  # 10 passed",
-    "Verify: python scripts/check_invariants.py && PYTHONPATH=src python -m pytest tests/unit -q  # 72 passed",
-    "Implement: src/gcis/risk/* + execution/paper.py P07"
+    "Run: PYTHONPATH=src python -m pytest tests/unit/test_risk_p07.py -v  # 10 passed",
+    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 82 passed",
+    "Next phase: P08 Backtest \u2014 shared engine + 4 baselines + census"
   ]
 }

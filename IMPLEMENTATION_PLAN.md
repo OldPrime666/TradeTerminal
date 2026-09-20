@@ -96,4 +96,22 @@
 - [x] Verify --full 72 tests 4 checks OK, check_invariants 8 OK, source_matrix 18/18
 - Next: tag `phase-P06` commit, advance BUILD_STATE to P07
 
-## ... (P07-P99 per PHASES.md v3: P07 Risk&Paper, P08 Backtest, P09 Runtime, P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)
+## P07 Risk & Paper — CODE_VERIFIED 2026-09-20
+- [x] Risk daily `src/gcis/risk/daily.py` RSK-02 `should_reset_daily`, `reset_daily_state`, `compute_daily_loss_pct` incl unrealised, `is_daily_loss_lock` limit 2% — 00:00 UTC reset tested
+- [x] Risk manager patched `src/gcis/risk/manager.py` RSK-06 `is_close` early-allow bypass kill/daily lock separate close atomic
+- [x] Sizing `risk/manager.py` round-down to step, hard caps 0.5% per trade / 2% daily / 10x leverage HARD — tests RSK-01 03 04
+- [x] Kill-switch atomic `src/gcis/persistence/models.py::KillSwitchState` + `risk/manager.py` KILL_SWITCH_ACTIVE gate → BLOCK_NEW_TRADES, close still allowed
+- [x] Paper fills conservative `src/gcis/execution/paper.py` EXE-04 `paper_fill_market` no-mid ±tick, `paper_fill_limit` LONG low<=entry-tick SHORT high>=entry+tick 1 tick trade-through, `evaluate_exits` AMBIGUOUS_STOP_FIRST retained
+- [x] Positions `src/gcis/execution/positions.py` EXE-05 `open_position/update_position_mark/close_position` Decimal PnL 38,18, realized/unrealised R
+- [x] Catch-up `src/gcis/execution/catch_up.py` EXE-06 `catch_up_missing` idempotent `_seen` + `reset_catch_up_state`
+- [x] Tests `tests/unit/test_risk_p07.py` 10 tests RSK-01..09 EXE-04..06: hard caps, daily incl unrealised+midnight, sizing round-down, kill-switch atomic separate close, paper conservative no-mid, limit trade-through, ambiguous, positions PnL, catch-up drill, gates+risk integration — all 10 passed (total 82)
+- [x] Fix history mock `tests/unit/test_history.py` patch both bulk+loader download_range + both loader+db get_session
+- [x] Verify --full 82 tests 4 checks OK (9 invariants SEC-09), source_matrix 18/18
+- Next: tag `phase-P07` commit, advance BUILD_STATE to P08
+
+## P08 Backtest — NOT_STARTED (next)
+- [ ] Shared-core backtest `src/gcis/backtest/engine.py` causal replay via MarketView(as_of), slippage/funding, HTF derived
+- [ ] 4 baselines random/buy-hold/momentum/regime + census tier
+- [ ] Tests `tests/unit/test_backtest_p08.py` 6+ tests, `verify --full` 88+ tests
+
+## ... (P09-P99 per PHASES.md v3: P09 Runtime, P10 Minimal UI — M0 v0.1 whole-universe futures, P11 full terminal, P12-P22 + P99)

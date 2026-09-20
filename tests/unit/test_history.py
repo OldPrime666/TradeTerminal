@@ -215,10 +215,12 @@ def test_loader_uses_registry_when_symbols_none(monkeypatch, tmp_path):
     import gcis.data.history.bulk as bulk
     fake_rows = [{"open_time":1704067200000*1000,"open":"1","high":"2","low":"0.5","close":"1.5","volume":"10","close_time":1704067259999*1000, "quote_volume":"15","trade_count":5,"taker_buy_volume":"6"}]
     monkeypatch.setattr(bulk, "download_range", lambda *a, **kw: fake_rows)
+    monkeypatch.setattr(loader, "download_range", lambda *a, **kw: fake_rows)
     monkeypatch.setattr(loader, "load_from_rest_tail", lambda *a, **kw: {"status":"OK","rows":0,"written":[]})
     monkeypatch.setattr(loader, "_ensure_archive_segment", lambda *a,**kw: None)
-    # patch get_session inside loader
+    # patch get_session inside loader and DB (loader re-imports from db)
     monkeypatch.setattr("gcis.data.history.loader.get_session", lambda: sess)
+    monkeypatch.setattr("gcis.persistence.db.get_session", lambda: sess)
     res = loader.download_history(symbols=None, venue="binance_um", timeframe="1m", start="2024-01-01", end="2024-01-01")
     # Should have resolved 2 symbols from registry but we limit to 20; check both present?
     # Our loader default limit 20, so both should be attempted, but we mock download_range always returns same row for each symbol -> should have both keys
