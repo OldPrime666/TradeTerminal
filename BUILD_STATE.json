@@ -1,6 +1,6 @@
 {
-  "implementation_version": "0.1.16",
-  "current_phase": "P16",
+  "implementation_version": "0.1.17",
+  "current_phase": "P17",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
@@ -18,7 +18,7 @@
     "P13": "CODE_VERIFIED",
     "P14": "CODE_VERIFIED",
     "P15": "CODE_VERIFIED",
-    "P16": "NOT_STARTED",
+    "P16": "CODE_VERIFIED",
     "P17": "NOT_STARTED",
     "P18": "NOT_STARTED",
     "P19": "NOT_STARTED",
@@ -216,9 +216,10 @@
     "ARC-20": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_history.py::test_derive_timeframe"
+        "tests/unit/test_scale_p16.py::test_schedule_bundles_budget",
+        "test_incremental_engine_affected_and_cached"
       ],
-      "evidence": "P02 audit"
+      "evidence": "src/gcis/data/transport/scheduler.py bundle 20s + src/gcis/market/incremental.py"
     },
     "DAT-07": {
       "status": "CODE_VERIFIED",
@@ -976,6 +977,13 @@
         "tests/unit/test_hardening2_p15.py::test_psy_proxies_fear_greed_and_regime"
       ],
       "evidence": "src/gcis/psychology/proxies.py fear_greed"
+    },
+    "DOM-01": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_scale_p16.py::test_orderbook_mid_spread_freshness_and_imbalance"
+      ],
+      "evidence": "src/gcis/market/orderbook.py stub"
     }
   },
   "operator_decisions": {
@@ -995,20 +1003,20 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T20:06:48.079586+00:00",
-    "log": "{\"mode\": \"post-install\", \"started_at\": \"2026-09-20T20:06:47.497147+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"live_candle_ingest\", \"ok\": false, \"detail\": \"unreachable (NO DATA): TLS/SSL connection has been closed (EOF) (_ssl.c:992)\"}], \"all_ok\": true, \"duration_s\": 0.5824382305145264, \"finished_at\": \"2026-09-20T20:06:48.079586+00:00\"}"
+    "timestamp": "2026-09-20T20:14:12.540380+00:00",
+    "log": "{\"mode\": \"post-install\", \"started_at\": \"2026-09-20T20:14:11.995895+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"live_candle_ingest\", \"ok\": false, \"detail\": \"unreachable (NO DATA): TLS/SSL connection has been closed (EOF) (_ssl.c:992)\"}], \"all_ok\": true, \"duration_s\": 0.5444867610931396, \"finished_at\": \"2026-09-20T20:14:12.540380+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P15 Hardening II — VOL-01 + PSY-01 + notifications + RSK-04 integration",
+  "current_file_group": "P16 Scalability ARC-20 — prioritised scheduling + bundle budget + incremental + DOM stub",
   "pending_tasks": [
-    "P16-P22 + P99 audit",
-    "P15 160 tests verified",
-    "P16 next: Scalability ARC-20 / DOM"
+    "P17-P22 + P99 audit",
+    "P16 168 tests verified",
+    "P17 next: DOM + CCXT twin"
   ],
   "next_actions": [
-    "Next: PYTHONPATH=src python -m pytest tests/unit/test_hardening2_p15.py -v  # 8 passed",
-    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 160 passed",
-    "Commit: git add -A && git commit -m 'P15 Hardening II CODE_VERIFIED' && git push origin arena/01a0bfdc-tradeterminal",
-    "Next phase: P16 — Scalability ARC-20 sharded WS / DOM"
+    "Next: PYTHONPATH=src python -m pytest tests/unit/test_scale_p16.py -v  # 8 passed",
+    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 168 passed",
+    "Commit: git add -A && git commit -m 'P16 Scalability CODE_VERIFIED' && git push origin arena/01a0bfdc-tradeterminal",
+    "Next phase: P17 — DOM Depth + CCXT twin + Notifications"
   ]
 }
