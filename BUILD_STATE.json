@@ -1,11 +1,11 @@
 {
-  "implementation_version": "0.1.2",
-  "current_phase": "P02",
+  "implementation_version": "0.1.3",
+  "current_phase": "P03",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
-    "P02": "IN_PROGRESS",
-    "P03": "NOT_STARTED",
+    "P02": "CODE_VERIFIED",
+    "P03": "IN_PROGRESS",
     "P04": "NOT_STARTED",
     "P05": "NOT_STARTED",
     "P06": "NOT_STARTED",
@@ -198,6 +198,55 @@
         "src/gcis/data/time_sync.py"
       ],
       "evidence": "preflight log"
+    },
+    "ARC-07": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_history.py::test_archive_write_read_idempotent"
+      ],
+      "evidence": "docs/audit/P02/verify_report.json"
+    },
+    "ARC-17": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_history.py::test_loader_bulk_and_tail_idempotent"
+      ],
+      "evidence": "verify --full 32 tests"
+    },
+    "ARC-20": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_history.py::test_derive_timeframe"
+      ],
+      "evidence": "P02 audit"
+    },
+    "DAT-07": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_history.py::test_normalize_timestamp_to_us"
+      ],
+      "evidence": "var/archive parquet"
+    },
+    "DAT-10": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_history.py::test_bulk_download_range_with_mock"
+      ],
+      "evidence": "docs/audit/P02/verify_report.json"
+    },
+    "DAT-14": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_history.py::test_quality_report_gap"
+      ],
+      "evidence": "quality_report gap 1"
+    },
+    "CAP-04_bulk": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_history.py"
+      ],
+      "evidence": "DATA_SOURCE_MATRIX.md"
     }
   },
   "operator_decisions": {
@@ -217,19 +266,19 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T18:07:03.330655+00:00",
-    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:07:01.359144+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................                                                 [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 1.9704878330230713, \"finished_at\": \"2026-09-20T18:07:03.329631+00:00\"}"
+    "timestamp": "2026-09-20T18:16:19.112064+00:00",
+    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:16:16.653639+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"................................                                         [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 2.45715594291687, \"finished_at\": \"2026-09-20T18:16:19.110793+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P01 universe & gateway (futures all contracts)",
+  "current_file_group": "P02 historical (1m base parquets, HTF derived)",
   "pending_tasks": [
-    "P02 bulk loader: data.binance.vision zips + public.bybit.com, ms/µs normalize, Parquet 1m only HTF derived (ARC-20)",
-    "P02 DAT-14 quality report, rest tail, gap report, disk_budget 200GB",
-    "P03 live WS sharded ≤180 streams/conn, rotation <24h"
+    "P03 live WS sharded ≤180 streams/conn (klines_1m, all_market, focus_set), rotation <24h overlap 15s, gap detection polling fallback 5s, raw recorder",
+    "P03 candle integrity unique (venue,symbol,tf,open_time) + outbox + MarketView as-of",
+    "P04 market: indicators, sessions, regime v1 (causality)"
   ],
   "next_actions": [
-    "Run: PYTHONPATH=src python -m gcis.cli sync-registry --use-fixtures  (verify offline registry 5 contracts)",
-    "Implement: src/gcis/data/history/loader.py P02 — fetch zip from data.binance.vision with checksum, unzip ms/µs -> µs, Parquet var/archive, 1m->HTF derived",
-    "Run: python scripts/check_invariants.py && python scripts/source_matrix_check.py --assert-min-fallbacks 3 && PYTHONPATH=src python -m pytest -q (should stay 24 passed)"
+    "Run: PYTHONPATH=src python -m gcis.cli download-history --symbols BTCUSDT --start 2024-01-01 --end 2024-01-02  (bulk NO DATA honest in sandbox, CODE_VERIFIED via tests/unit/test_history.py:8 mocked zip)",
+    "Verify: python scripts/check_invariants.py && python scripts/source_matrix_check.py --assert-min-fallbacks 3 && PYTHONPATH=src python -m pytest tests/unit/test_history.py -v (should 8 passed, total 32)",
+    "Implement: src/gcis/data/transport/ P03 — sharded WS per ARC-20, gap_backfill_max_bars 1500, polling fallback interval 5s, raw NDJSON+zstd"
   ]
 }

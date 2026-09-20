@@ -34,9 +34,17 @@
 - [x] Verify: `verify --quick` + `verify --full` PASSED 24 tests (8 new), check_invariants 9/9, source_matrix 18/18
 - Next: tag `phase-P01` commit, advance BUILD_STATE to P02
 
-## P02 Historical — IN_PROGRESS (next)
-- [ ] Bulk loader data.binance.vision zip handling, ms/µs normalize, Parquet (only 1m base, HTF derived ARC-20)
-- [ ] DAT-14 quality report, rest tail, idempotent/resumable, gap report, disk_budget 200GB
+## P02 Historical — CODE_VERIFIED 2026-09-20
+- [x] Archive store: `src/gcis/data/archive/store.py` — Parquet+zstd `var/archive/<venue>/<symbol>/<tf>/YYYY-MM-DD.parquet`, `write_parquet`/`read_parquet`/`df_from_bulk_rows`/`derive_timeframe` (ARC-20a 1m base only, HTF derived via resample 1m→5m/15m/1h/4h/1d, checked), `normalize_timestamp_to_us` (ms/µs→µs), `check_disk_budget` (10GB warn /2GB BLOCK), idempotent dedup open_time
+- [x] Bulk: `src/gcis/data/history/bulk.py` — `BINANCE_VISION_BASE data/futures/{um,cm}/daily|monthly/klines/...` daily/monthly zip chain, `.CHECKSUM` verify, `zipfile`+`csv`, `parse_binance_kline_csv_row` (open_time us, Decimal strings), `download_range` dedup+sort, geo 451/403 → [] no circumvention, fallback bybit stub — free only
+- [x] Quality: `src/gcis/data/quality/report.py` — `TIMEFRAME_US`, `detect_gaps` (interval*1.1), `quality_report` (total/expected/missing/gap_count/gaps_sample/first/last/status OK/GAP/INSUFFICIENT_HISTORY <300), `check_aggregation_mismatch`
+- [x] Loader: `src/gcis/data/history/loader.py` — `ingest_rows_to_parquet` (dedup, df_from_bulk_rows, check identical skip, disk budget, write + archive_segments upsert version p02-1m-base), `load_from_bulk` (90d default, partition by date, write per day, quality_report, fast offline TLS-block → NO DATA honest), `load_from_rest_tail` (BinanceUMAdapter.klines → normalize → partition), `download_history` (resolve symbols from ContractRegistry if None, disk BLOCK, bulk+tail per symbol with combined status, log), market um/cm
+- [x] Binance UM klines: added `klines` + `mark_price_klines` to `binance_um.py` (ms/µs handling)
+- [x] Fixtures & tests: `tests/unit/test_history.py` 8 tests — parse row, normalize ts, archive idempotent (write/read/dedup), bulk mock 2-day zip →3 rows sorted, quality gap vs no-gap, derive 5m from 5x1m → open 100 close 109 high 114, loader bulk+tail idempotent (tmp archive), loader registry symbols resolution via in-memory DB
+- [x] CLI: `python -m gcis.cli download-history [--symbols ...] [--timeframe 1m] [--venue binance_um] [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--market um]` — prints bulk/tail per symbol + disk + gap, honest NO DATA when TLS blocked (fast path for 90d default → NO DATA offline sandbox honest), offline CODE_VERIFIED via tests
+- [x] Demo archive: `var/archive/binance_um/BTCUSDT/1m/2024-01-01.parquet` (5 bars) + `2024-01-02.parquet` (3 bars) demo 8 bars, `archive_segments` 2 rows, `quality_report` gap 1 (1435 missing between days) → INSUFFICIENT_HISTORY demo; `derive_timeframe` 5m validated
+- [x] Verify: `verify --quick` + `verify --full` PASSED 32 tests (8 new history), `check_invariants` 9/9 OK, `source_matrix_check` 18/18 PASSED (CAP-04 bulk still ≥3 fallbacks)
+- Next: tag `phase-P02` commit, advance BUILD_STATE to P03
 
 ## P03 Live ingest — NOT_STARTED
 - [ ] WS transport 2 conns, rotation <24h, gap detection, polling fallback, recorder (sharded ≤180 streams/conn)

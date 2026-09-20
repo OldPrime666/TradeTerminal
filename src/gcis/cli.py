@@ -188,15 +188,35 @@ def cmd_verify(args):
     return 0 if all_ok else 1
 
 def cmd_download_history(args):
-    print("=== Download History (bulk + REST) ===")
+    print("=== Download History (bulk + REST) P02 ===")
     from gcis.core.config import get_config
     cfg = get_config()
-    print("This will attempt data.binance.vision bulk download + REST tail. Network may be blocked -> UNVERIFIED_ENV")
+    print(f"Venue {getattr(args,'venue', None) or cfg.get('universe',{}).get('venue_chain',['binance_um'])[0]} TF {args.timeframe} symbols {args.symbols} ({getattr(args,'start',None)}→{getattr(args,'end',None)})")
+    print("This will attempt data.binance.vision bulk zip + REST tail. Network may be blocked -> NO DATA honest + UNVERIFIED_ENV for live wall-time.")
     try:
         from gcis.data.history.loader import download_history
-        download_history(symbols=args.symbols, timeframe=args.timeframe)
+        res = download_history(
+            symbols=args.symbols,
+            venue=getattr(args, 'venue', None),
+            timeframe=args.timeframe,
+            start=getattr(args, 'start', None),
+            end=getattr(args, 'end', None),
+            market=getattr(args, 'market', 'um'),
+        )
+        print(json.dumps(res, indent=2, default=str)[:8000])
+        # summarize
+        for sym, detail in res.get("symbols", {}).items():
+            bulk = detail.get("bulk", {})
+            tail = detail.get("tail", {})
+            print(f"  {sym}: bulk {bulk.get('rows',0)} {bulk.get('status')} | tail {tail.get('rows',0)} {tail.get('status')}")
+        # quality check: if any gap, show
+        disk = res.get("disk","")
+        print(f"Disk {disk}")
+        if any("NO DATA" in (detail.get("bulk",{}).get("status","") or "") for detail in res.get("symbols",{}).values()):
+            print("History: NO DATA for bulk in sandbox TLS block is expected — CODE_VERIFIED via tests/fixtures (offline). For live, run on reachable host.")
     except Exception as e:
         print(f"History loader error (expected if OFFLINE): {e}", file=sys.stderr)
+        import traceback; traceback.print_exc()
         print("Marking UNVERIFIED_ENV for DAT-10")
     return 0
 
@@ -270,8 +290,12 @@ def main():
     v.add_argument("--post-install", action="store_true")
     v.set_defaults(func=cmd_verify)
     d = sub.add_parser("download-history")
-    d.add_argument("--symbols", nargs="+", default=["BTCUSDT","ETHUSDT"])
+    d.add_argument("--symbols", nargs="+", default=None, help="symbols; default from ContractRegistry TRADING else BTCUSDT")
     d.add_argument("--timeframe", default="1m")
+    d.add_argument("--venue", default=None, help="venue id (binance_um default)")
+    d.add_argument("--start", default=None, help="YYYY-MM-DD start for bulk")
+    d.add_argument("--end", default=None, help="YYYY-MM-DD end for bulk")
+    d.add_argument("--market", default="um", choices=["um","cm"], help="futures market um/cm")
     d.set_defaults(func=cmd_download_history)
     b = sub.add_parser("backtest")
     b.add_argument("--symbols", nargs="+", default=["BTCUSDT"])

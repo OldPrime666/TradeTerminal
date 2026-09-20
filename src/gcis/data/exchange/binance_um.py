@@ -29,6 +29,38 @@ class BinanceUMAdapter(BaseVenueAdapter):
         data = r.json()
         return self.parse_exchange_info(data)
 
+    def klines(self, symbol: str, interval: str, limit: int = 100, startTime: int | None = None, endTime: int | None = None) -> List[List[Any]]:
+        """
+        GET /fapi/v1/klines — futures klines. interval like 1m, 5m etc.
+        startTime/endTime in ms (Binance expects ms). We handle µs input by converting.
+        """
+        params: Dict[str, Any] = {"symbol": symbol, "interval": interval, "limit": limit}
+        # normalize start/end from µs to ms if needed
+        def to_ms(ts):
+            if ts is None:
+                return None
+            if ts > 1_000_000_000_000_000:  # µs
+                return ts // 1000
+            if ts > 1_000_000_000_000:  # ms already
+                return ts
+            return ts
+        if startTime is not None:
+            params["startTime"] = to_ms(startTime)
+        if endTime is not None:
+            params["endTime"] = to_ms(endTime)
+        r = self._client.get(f"{self.rest_base}/fapi/v1/klines", params=params, timeout=self.timeout)
+        r.raise_for_status()
+        return r.json()
+
+    def mark_price_klines(self, symbol: str, interval: str, limit: int = 100, startTime: int | None = None) -> List[List[Any]]:
+        params: Dict[str, Any] = {"symbol": symbol, "interval": interval, "limit": limit}
+        if startTime is not None:
+            # convert µs to ms
+            params["startTime"] = startTime // 1000 if startTime > 1_000_000_000_000_000 else startTime
+        r = self._client.get(f"{self.rest_base}/fapi/v1/markPriceKlines", params=params, timeout=self.timeout)
+        r.raise_for_status()
+        return r.json()
+
     @staticmethod
     def parse_exchange_info(data: Dict[str, Any], venue: str = "binance_um") -> List[Dict[str, Any]]:
         """Parse Binance UM exchangeInfo JSON into normalized contracts. Handles recorded payloads offline."""

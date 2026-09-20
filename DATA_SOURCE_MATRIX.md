@@ -1,6 +1,6 @@
 # DATA_SOURCE_MATRIX — Appendix A (Generated)
 
-_Generated: 2026-09-20T18:05:12.858367+00:00 from `config/sources.yaml` (single source of truth). Tags V=verified 2026-09-20, U=unverified/candidate. FBK-07 keyless-complete._
+_Generated: 2026-09-20T18:16:04.109187+00:00 from `config/sources.yaml` (single source of truth). Tags V=verified 2026-09-20, U=unverified/candidate. FBK-07 keyless-complete._
 
 | Capability | Primary | Fallbacks (free, ranked) | Keyless? | Tag chain | Notes |
 |---|---|---|---|---|---|
