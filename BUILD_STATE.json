@@ -1,6 +1,6 @@
 {
-  "implementation_version": "0.1.14",
-  "current_phase": "P14",
+  "implementation_version": "0.1.15",
+  "current_phase": "P15",
   "phases": {
     "P00": "CODE_VERIFIED",
     "P01": "CODE_VERIFIED",
@@ -16,7 +16,7 @@
     "P11": "CODE_VERIFIED",
     "P12": "CODE_VERIFIED",
     "P13": "CODE_VERIFIED",
-    "P14": "NOT_STARTED",
+    "P14": "CODE_VERIFIED",
     "P15": "NOT_STARTED",
     "P16": "NOT_STARTED",
     "P17": "NOT_STARTED",
@@ -482,9 +482,9 @@
     "RSK-04": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_risk_p07.py"
+        "tests/unit/test_hardening_p14.py::test_correlation_dynamic_and_threshold"
       ],
-      "evidence": "docs/audit/P07/verify_report.json"
+      "evidence": "src/gcis/risk/correlation.py dynamic clustering"
     },
     "RSK-05": {
       "status": "CODE_VERIFIED",
@@ -713,9 +713,9 @@
     "OPS-06": {
       "status": "CODE_VERIFIED",
       "tests": [
-        "tests/unit/test_app_p10.py"
+        "tests/unit/test_hardening_p14.py::test_retention_policy_and_manifest"
       ],
-      "evidence": "docs/audit/P10/verify_report.json"
+      "evidence": "src/gcis/ops/backup.py retention 14/30 unlimited"
     },
     "OPS-07": {
       "status": "CODE_VERIFIED",
@@ -927,6 +927,41 @@
         "tests/unit/test_probability_p13.py::test_engine_small_sample_gate_fails_gracefully"
       ],
       "evidence": "gate FAIL -> N/A not 0%"
+    },
+    "DAT-12": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_hardening_p14.py::test_secondary_discrepancy_warn_flag_and_fresh"
+      ],
+      "evidence": "src/gcis/data/secondary.py metadata only never overwrite"
+    },
+    "DAT-13": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_hardening_p14.py::test_news_blackout_and_veto"
+      ],
+      "evidence": "src/gcis/data/news.py macro blackout 30/30"
+    },
+    "OPS-09": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_hardening_p14.py::test_metrics_rollup_budgets"
+      ],
+      "evidence": "src/gcis/ops/metrics.py 1m rollups"
+    },
+    "OPS-10": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_hardening_p14.py::test_readiness_report_not_ready_honest"
+      ],
+      "evidence": "src/gcis/ops/readiness.py alerts"
+    },
+    "EXE-09": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_hardening_p14.py::test_readiness_report_not_ready_honest"
+      ],
+      "evidence": "src/gcis/ops/readiness.py EXE-09 readiness"
     }
   },
   "operator_decisions": {
@@ -946,20 +981,20 @@
   "last_verify": {
     "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T19:56:24.543320+00:00",
-    "log": "{\"mode\": \"post-install\", \"started_at\": \"2026-09-20T19:56:24.002550+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"live_candle_ingest\", \"ok\": false, \"detail\": \"unreachable (NO DATA): TLS/SSL connection has been closed (EOF) (_ssl.c:992)\"}], \"all_ok\": true, \"duration_s\": 0.5407702922821045, \"finished_at\": \"2026-09-20T19:56:24.543320+00:00\"}"
+    "timestamp": "2026-09-20T20:02:04.064228+00:00",
+    "log": "{\"mode\": \"post-install\", \"started_at\": \"2026-09-20T20:02:03.452659+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"live_candle_ingest\", \"ok\": false, \"detail\": \"unreachable (NO DATA): TLS/SSL connection has been closed (EOF) (_ssl.c:992)\"}], \"all_ok\": true, \"duration_s\": 0.6115725040435791, \"finished_at\": \"2026-09-20T20:02:04.064228+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "P13 Probability A — Tier A EB pooled + calibration + EV_lcb + gates PRB-01..12",
+  "current_file_group": "P14 Hardening — correlation DAT-12/13 backup readiness RSK-04 DAT-12/13 OPS-06/09/10 EXE-09",
   "pending_tasks": [
-    "P14-P22 Hardening + P99 audit",
-    "P13 142 tests 9 invariants verified",
-    "P14 next: correlation/DAT-12/13/OPS/EXE-09"
+    "P15-P22 Hardening + P99 audit",
+    "P14 152 tests 9 invariants verified",
+    "P15 next: hardening II"
   ],
   "next_actions": [
-    "Next: PYTHONPATH=src python -m pytest tests/unit/test_probability_p13.py -v  # 14 passed",
-    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 142 passed",
-    "Commit: git add -A && git commit -m 'P13 Probability A CODE_VERIFIED' && git push origin arena/01a0bfdc-tradeterminal",
-    "Next phase: P14 Hardening — RSK-04 DAT-12/13 OPS-06/09/10 EXE-09"
+    "Next: PYTHONPATH=src python -m pytest tests/unit/test_hardening_p14.py -v  # 10 passed",
+    "Verify: PYTHONPATH=src python -m gcis.cli verify --full  # 152 passed",
+    "Commit: git add -A && git commit -m 'P14 Hardening CODE_VERIFIED' && git push origin arena/01a0bfdc-tradeterminal",
+    "Next phase: P15 Hardening II — OPS hardening part2 + risk integration"
   ]
 }
