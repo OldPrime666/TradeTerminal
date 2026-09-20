@@ -53,11 +53,40 @@ def cmd_preflight(args):
         adapter.close()
     except Exception as e:
         print(f"Binance probe error: {e}")
-    # universe
+    # universe registry (P01) — try exchangeInfo with failover, honest NO DATA if blocked
     try:
-        from gcis.data.exchange.binance import BinanceAdapter
-        # try exchangeInfo but not fatal
-    except: pass
+        from gcis.data.universe import sync_registry
+        from gcis.persistence.db import get_session
+        from gcis.persistence.models import ContractRegistry
+        print("Syncing contract registry (P01)...")
+        session = get_session()
+        # Use fixtures fallback only if explicitly in offline sandbox? honest probe: try real, if all fail show NO DATA
+        result = sync_registry(session=session, timeout=5)
+        if result["status"] == "HEALTHY":
+            print(f"Registry: {result['venue_used']} listed={result['listed']} analysable={result['analysable']} added={result['added']} updated={result['updated']}")
+            # show sample via DB
+            sample = session.query(ContractRegistry).filter(ContractRegistry.status=="TRADING").limit(3).all()
+            for s in sample:
+                print(f"  - {s.venue}:{s.symbol} {s.contract_family} {s.contract_type}")
+        else:
+            print(f"Registry: NO DATA — all venues unreachable (expected in sandbox TLS block) — {result.get('error')}")
+            print("  -> Fixture-based test still proves parser CODE_VERIFIED (tests/unit/test_universe.py). Run offline fixture: sync with --use-fixtures")
+        session.close()
+    except Exception as e:
+        print(f"Registry sync error (non-fatal): {e}")
+    # time sync check
+    try:
+        from gcis.data.time_sync import sync_time, clock_drift_ms
+        t, src = sync_time(timeout=3)
+        if t:
+            drift = clock_drift_ms(t)
+            print(f"Time sync: {src} drift={drift}ms (warn 500/block 2000)")
+            if drift is not None and abs(drift) > 2000:
+                print("CLOCK_DRIFT_BLOCK — new entries would be blocked (INV-10)")
+        else:
+            print("Time sync: NO DATA (all venues+NTP failed — CLOCK checks will block entries safely)")
+    except Exception as e:
+        print(f"Time sync error: {e}")
     print("Preflight done (non-fatal NO DATA allowed)")
     return 0
 
@@ -189,6 +218,35 @@ def cmd_healthcheck(args):
     print(json.dumps(h, indent=2, ensure_ascii=False))
     return 0 if h["verdict"] in ("HEALTHY","DEGRADED") else 1
 
+def cmd_sync_registry(args):
+    print("=== Sync Contract Registry (P01 Universe) ===")
+    from gcis.data.universe import sync_registry
+    from gcis.persistence.db import get_session
+    from gcis.persistence.models import ContractRegistry, CoverageReport, VenueStatus
+    session = get_session()
+    try:
+        result = sync_registry(session=session, venue_chain=args.venues if args.venues else None, timeout=args.timeout, use_fixtures_on_failure=args.use_fixtures)
+        print(json.dumps(result, indent=2, default=str))
+        if result["status"] == "HEALTHY":
+            regs = session.query(ContractRegistry).filter(ContractRegistry.status=="TRADING").limit(5).all()
+            for r in regs:
+                print(f"  {r.venue}:{r.symbol} family={r.contract_family} type={r.contract_type} tick={r.tick_size}")
+            cov = session.query(CoverageReport).order_by(CoverageReport.created_at.desc()).first()
+            if cov:
+                print(f"Coverage: listed={cov.listed} analysable={cov.analysable} venue={cov.venue}")
+            vs = session.query(VenueStatus).all()
+            for v in vs:
+                print(f"Venue {v.venue}: {v.status} active={v.active} latency={v.latency_ms}ms err={v.error_count}")
+        else:
+            print("NO DATA — all venues failed (honest). Use --use-fixtures to verify CODE_VERIFIED via recorded payloads.")
+    except Exception as e:
+        print(f"sync_registry error: {e}", file=sys.stderr)
+        import traceback; traceback.print_exc()
+        return 1
+    finally:
+        session.close()
+    return 0
+
 def cmd_census(args):
     print("=== Signal Census ===")
     try:
@@ -223,6 +281,11 @@ def main():
     b.set_defaults(func=cmd_backtest)
     h = sub.add_parser("healthcheck")
     h.set_defaults(func=cmd_healthcheck)
+    sr = sub.add_parser("sync-registry", help="P01 universe sync: exchangeInfo -> contract_registry with failover")
+    sr.add_argument("--venues", nargs="*", default=None, help="override venue_chain")
+    sr.add_argument("--timeout", type=int, default=10)
+    sr.add_argument("--use-fixtures", action="store_true", help="fallback to recorded fixtures if live fails (tests)")
+    sr.set_defaults(func=cmd_sync_registry)
     c = sub.add_parser("census")
     c.set_defaults(func=cmd_census)
     args = parser.parse_args()

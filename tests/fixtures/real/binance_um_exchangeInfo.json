@@ -1,0 +1,126 @@
+{
+  "timezone": "UTC",
+  "serverTime": 1720000000000,
+  "rateLimits": [],
+  "exchangeFilters": [],
+  "symbols": [
+    {
+      "symbol": "BTCUSDT",
+      "pair": "BTCUSDT",
+      "contractType": "PERPETUAL",
+      "deliveryDate": 4133404800000,
+      "onboardDate": 1569398400000,
+      "status": "TRADING",
+      "maintMarginPercent": "2.5000",
+      "requiredMarginPercent": "5.0000",
+      "baseAsset": "BTC",
+      "quoteAsset": "USDT",
+      "marginAsset": "USDT",
+      "pricePrecision": 1,
+      "quantityPrecision": 3,
+      "baseAssetPrecision": 8,
+      "quotePrecision": 8,
+      "underlyingType": "COIN",
+      "underlyingSubType": [],
+      "settlePlan": 0,
+      "triggerProtect": "0.0500",
+      "filters": [
+        {"filterType": "PRICE_FILTER", "maxPrice": "1000000", "minPrice": "0.10", "tickSize": "0.10"},
+        {"filterType": "LOT_SIZE", "maxQty": "1000", "minQty": "0.001", "stepSize": "0.001"},
+        {"filterType": "MIN_NOTIONAL", "notional": "5"}
+      ],
+      "orderTypes": ["LIMIT","MARKET"],
+      "timeInForce": ["GTC","IOC"]
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pair": "ETHUSDT",
+      "contractType": "PERPETUAL",
+      "deliveryDate": 4133404800000,
+      "onboardDate": 1569398400000,
+      "status": "TRADING",
+      "baseAsset": "ETH",
+      "quoteAsset": "USDT",
+      "marginAsset": "USDT",
+      "pricePrecision": 2,
+      "quantityPrecision": 3,
+      "baseAssetPrecision": 8,
+      "quotePrecision": 8,
+      "underlyingType": "COIN",
+      "filters": [
+        {"filterType": "PRICE_FILTER", "maxPrice": "100000", "minPrice": "0.01", "tickSize": "0.01"},
+        {"filterType": "LOT_SIZE", "maxQty": "10000", "minQty": "0.001", "stepSize": "0.001"},
+        {"filterType": "MIN_NOTIONAL", "notional": "5"}
+      ],
+      "orderTypes": ["LIMIT","MARKET"],
+      "timeInForce": ["GTC","IOC"]
+    },
+    {
+      "symbol": "SOLUSDT",
+      "pair": "SOLUSDT",
+      "contractType": "PERPETUAL",
+      "deliveryDate": 4133404800000,
+      "onboardDate": 1620000000000,
+      "status": "TRADING",
+      "baseAsset": "SOL",
+      "quoteAsset": "USDT",
+      "marginAsset": "USDT",
+      "pricePrecision": 3,
+      "quantityPrecision": 0,
+      "baseAssetPrecision": 8,
+      "quotePrecision": 8,
+      "underlyingType": "COIN",
+      "filters": [
+        {"filterType": "PRICE_FILTER", "maxPrice": "10000", "minPrice": "0.001", "tickSize": "0.001"},
+        {"filterType": "LOT_SIZE", "maxQty": "100000", "minQty": "1", "stepSize": "1"},
+        {"filterType": "MIN_NOTIONAL", "notional": "5"}
+      ],
+      "orderTypes": ["LIMIT","MARKET"],
+      "timeInForce": ["GTC","IOC"]
+    },
+    {
+      "symbol": "BTCUSDT_240927",
+      "pair": "BTCUSDT",
+      "contractType": "CURRENT_QUARTER",
+      "deliveryDate": 1727404800000,
+      "onboardDate": 1720000000000,
+      "status": "TRADING",
+      "baseAsset": "BTC",
+      "quoteAsset": "USDT",
+      "marginAsset": "USDT",
+      "pricePrecision": 1,
+      "quantityPrecision": 3,
+      "baseAssetPrecision": 8,
+      "quotePrecision": 8,
+      "underlyingType": "COIN",
+      "filters": [
+        {"filterType": "PRICE_FILTER", "maxPrice": "1000000", "minPrice": "0.10", "tickSize": "0.10"},
+        {"filterType": "LOT_SIZE", "maxQty": "1000", "minQty": "0.001", "stepSize": "0.001"}
+      ],
+      "orderTypes": ["LIMIT","MARKET"],
+      "timeInForce": ["GTC","IOC"]
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "pair": "1000PEPEUSDT",
+      "contractType": "PERPETUAL",
+      "deliveryDate": 4133404800000,
+      "onboardDate": 1680000000000,
+      "status": "TRADING",
+      "baseAsset": "1000PEPE",
+      "quoteAsset": "USDT",
+      "marginAsset": "USDT",
+      "pricePrecision": 5,
+      "quantityPrecision": 0,
+      "baseAssetPrecision": 8,
+      "quotePrecision": 8,
+      "underlyingType": "COIN",
+      "filters": [
+        {"filterType": "PRICE_FILTER", "maxPrice": "10", "minPrice": "0.00001", "tickSize": "0.00001"},
+        {"filterType": "LOT_SIZE", "maxQty": "10000000", "minQty": "1", "stepSize": "1"}
+      ],
+      "orderTypes": ["LIMIT","MARKET"],
+      "timeInForce": ["GTC","IOC"]
+    }
+  ]
+}

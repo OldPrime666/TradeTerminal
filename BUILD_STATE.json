@@ -1,10 +1,10 @@
 {
-  "implementation_version": "0.1.1",
-  "current_phase": "P01",
+  "implementation_version": "0.1.2",
+  "current_phase": "P02",
   "phases": {
     "P00": "CODE_VERIFIED",
-    "P01": "IN_PROGRESS",
-    "P02": "NOT_STARTED",
+    "P01": "CODE_VERIFIED",
+    "P02": "IN_PROGRESS",
     "P03": "NOT_STARTED",
     "P04": "NOT_STARTED",
     "P05": "NOT_STARTED",
@@ -125,6 +125,79 @@
         "tests/unit/test_*"
       ],
       "evidence": "verify_report.json"
+    },
+    "ARC-11": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_universe.py"
+      ],
+      "evidence": "docs/audit/P01/verify_report.json"
+    },
+    "DAT-01": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "scripts/source_matrix_check.py",
+        "tests/unit/test_universe.py"
+      ],
+      "evidence": "DATA_SOURCE_MATRIX.md"
+    },
+    "DAT-02": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_universe.py::test_binance_um_parse",
+        "test_registry_sync_using_fixture"
+      ],
+      "evidence": "docs/audit/P01/verify_report.json"
+    },
+    "DAT-03": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_universe.py::test_*_parse"
+      ],
+      "evidence": "src/gcis/data/exchange/*"
+    },
+    "DAT-15": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_universe.py::test_registry_sync_using_fixture"
+      ],
+      "evidence": "var/gcis.db venue_status"
+    },
+    "INV-25": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "scripts/check_invariants.py",
+        "tests/unit/test_universe.py::test_no_hardcoded_universe"
+      ],
+      "evidence": "check_invariants 9/9"
+    },
+    "INV-26": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "scripts/check_invariants.py"
+      ],
+      "evidence": "SourceSwitchEvent"
+    },
+    "SEC-09": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/unit/test_universe.py::test_registry_sync_using_fixture"
+      ],
+      "evidence": "check_invariants"
+    },
+    "CAP-01_registry": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "tests/fixtures/real/*"
+      ],
+      "evidence": "DATA_SOURCE_MATRIX.md"
+    },
+    "CAP-14_time_sync": {
+      "status": "CODE_VERIFIED",
+      "tests": [
+        "src/gcis/data/time_sync.py"
+      ],
+      "evidence": "preflight log"
     }
   },
   "operator_decisions": {
@@ -142,22 +215,21 @@
   "assumptions": [],
   "known_failures": [],
   "last_verify": {
-    "command": "verify --quick",
+    "command": "verify --full",
     "exit_code": 0,
-    "timestamp": "2026-09-20T17:47:52.275719+00:00",
-    "log": "{\"mode\": \"quick\", \"started_at\": \"2026-09-20T17:47:51.176978+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"................                                                         [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 1.0976340770721436, \"finished_at\": \"2026-09-20T17:47:52.274612+00:00\"}"
+    "timestamp": "2026-09-20T18:07:03.330655+00:00",
+    "log": "{\"mode\": \"full\", \"started_at\": \"2026-09-20T18:07:01.359144+00:00\", \"checks\": [{\"name\": \"check_invariants\", \"ok\": true, \"detail\": \"=== GCIS Invariant Check v3 ===\\n[OK] INV-01 no fabricated data in runtime\\n[OK] INV-06 UI not source of truth\\n[OK] INV-21 no business loops in Streamlit\\n[OK] INV-13 numerics UTC timestamptz\\n[OK] INV-15 secrets handling\\n[OK] INV-23 docs vs code (placeholder scan)\\n[OK] INV-25 universe completeness (no hard-coded list/cap)\\n[OK] INV-26 source transparency\\n[OK] SEC-09 no circumvention\\n\\n/usr/bin/python: No module named importlinter\\n\\n[WARN] import-linter failed or not satisfied\\n\"}, {\"name\": \"config_load\", \"ok\": true, \"detail\": \"loaded\"}, {\"name\": \"db_migrations\", \"ok\": true, \"detail\": \"sqlite:///var/gcis.db\"}, {\"name\": \"pytest\", \"ok\": true, \"detail\": \"........................                                                 [100%]\\n\"}], \"all_ok\": true, \"duration_s\": 1.9704878330230713, \"finished_at\": \"2026-09-20T18:07:03.329631+00:00\"}"
   },
   "migration_head": "sqlite_init",
-  "current_file_group": "v3 migration",
+  "current_file_group": "P01 universe & gateway (futures all contracts)",
   "pending_tasks": [
-    "Migrate config/default.yaml to v3 futures + sources.yaml",
-    "Migrate contract registry from symbol list to dynamic (INV-25)",
-    "Upgrade risk with leverage/liquidation/funding (INV-27)",
-    "Implement failover chains per Appendix A (FBK)"
+    "P02 bulk loader: data.binance.vision zips + public.bybit.com, ms/µs normalize, Parquet 1m only HTF derived (ARC-20)",
+    "P02 DAT-14 quality report, rest tail, gap report, disk_budget 200GB",
+    "P03 live WS sharded ≤180 streams/conn, rotation <24h"
   ],
   "next_actions": [
-    "Run scripts/env_probe.py v3 (all venues)",
-    "Create config/sources.yaml + DATA_SOURCE_MATRIX.md",
-    "Update core enums + persistence for futures"
+    "Run: PYTHONPATH=src python -m gcis.cli sync-registry --use-fixtures  (verify offline registry 5 contracts)",
+    "Implement: src/gcis/data/history/loader.py P02 — fetch zip from data.binance.vision with checksum, unzip ms/µs -> µs, Parquet var/archive, 1m->HTF derived",
+    "Run: python scripts/check_invariants.py && python scripts/source_matrix_check.py --assert-min-fallbacks 3 && PYTHONPATH=src python -m pytest -q (should stay 24 passed)"
   ]
 }

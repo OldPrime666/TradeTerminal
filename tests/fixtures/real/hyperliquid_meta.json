@@ -1,0 +1,8 @@
+{
+  "universe": [
+    {"name": "BTC", "szDecimals": 5, "maxLeverage": 50, "onlyIsolated": false},
+    {"name": "ETH", "szDecimals": 4, "maxLeverage": 50, "onlyIsolated": false},
+    {"name": "SOL", "szDecimals": 2, "maxLeverage": 20, "onlyIsolated": false},
+    {"name": "ARB", "szDecimals": 1, "maxLeverage": 10, "onlyIsolated": false}
+  ]
+}

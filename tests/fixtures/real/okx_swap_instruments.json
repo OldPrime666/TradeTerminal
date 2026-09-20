@@ -1,0 +1,37 @@
+{
+  "code": "0",
+  "msg": "",
+  "data": [
+    {
+      "instType": "SWAP",
+      "instId": "BTC-USDT-SWAP",
+      "uly": "BTC-USDT",
+      "baseCcy": "BTC",
+      "quoteCcy": "USDT",
+      "settleCcy": "USDT",
+      "ctVal": "1",
+      "ctValCcy": "USDT",
+      "ctType": "linear",
+      "state": "live",
+      "tickSz": "0.1",
+      "lotSz": "0.01",
+      "lever": "125",
+      "minSz": "0.01"
+    },
+    {
+      "instType": "SWAP",
+      "instId": "ETH-USDT-SWAP",
+      "uly": "ETH-USDT",
+      "baseCcy": "ETH",
+      "quoteCcy": "USDT",
+      "settleCcy": "USDT",
+      "ctVal": "1",
+      "ctValCcy": "USDT",
+      "ctType": "linear",
+      "state": "live",
+      "tickSz": "0.01",
+      "lotSz": "0.1",
+      "lever": "100"
+    }
+  ]
+}
