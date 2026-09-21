@@ -219,6 +219,15 @@ def _analyzer_tick():
 
 def run_analyzer(stop_after: int = 1):
     pid = os.getpid()
+    # Phase1 continuous: stop_after=None → forever until supervisor SIGTERM
+    if stop_after is None:
+        try:
+            while True:
+                tick = _analyzer_tick()
+                update_worker_heartbeat("analyzer", pid=pid, state="HEALTHY", lag_ms=tick.get("latency_ms", 0), queue_depth=tick.get("processed", 0))
+                time.sleep(0.3)
+        except KeyboardInterrupt:
+            return "analyzer stopped"
     for _ in range(stop_after):
         tick = _analyzer_tick()
         # heartbeat reflects real processing: latency and queue depth
@@ -253,6 +262,17 @@ def _risk_tick():
 
 def run_risk(stop_after: int = 1):
     pid = os.getpid()
+    if stop_after is None:
+        try:
+            while True:
+                state = _risk_tick()
+                hb_state = "HEALTHY"
+                if state.get("kill_active"):
+                    hb_state = "BLOCKED"
+                update_worker_heartbeat("risk", pid=pid, state=hb_state)
+                time.sleep(0.3)
+        except KeyboardInterrupt:
+            return "risk stopped"
     for _ in range(stop_after):
         state = _risk_tick()
         # Risk health reflects kill switch / daily risk, not synthetic
@@ -366,6 +386,14 @@ def _paper_tick():
 
 def run_paper(stop_after: int = 1):
     pid = os.getpid()
+    if stop_after is None:
+        try:
+            while True:
+                tick = _paper_tick()
+                update_worker_heartbeat("paper", pid=pid, state="HEALTHY", queue_depth=tick.get("created", 0))
+                time.sleep(0.3)
+        except KeyboardInterrupt:
+            return "paper stopped"
     for _ in range(stop_after):
         tick = _paper_tick()
         # Paper health reflects real execution loop: created count as queue_depth

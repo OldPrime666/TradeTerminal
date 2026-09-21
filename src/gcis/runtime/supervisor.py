@@ -231,8 +231,8 @@ class Supervisor:
         try:
             # Windows-compatible spawn — pass stop_after via kwargs if target accepts
             # For live, we run with stop_after=None (forever); for tests, caller passes stop_after=1
-            # Default to None for supervisor-managed live processes
-            run_kwargs = kwargs if kwargs else {}
+            # Default to empty (target default 1) for tests; production _supervisor_loop passes stop_after=None explicitly
+            run_kwargs = dict(kwargs) if kwargs else {}
             p = self._ctx.Process(target=target, kwargs=run_kwargs, daemon=False)
             p.start()
             self._procs[process] = p
@@ -347,9 +347,9 @@ def get_supervisor() -> Supervisor:
 def _supervisor_loop(interval: float = 2.0):
     """Continuous loop: monitor_tick every interval, handle crash detection/backoff/restart, reconcile state."""
     sup = get_supervisor()
-    # Start all 4 on boot
+    # Start all 4 on boot — continuous (stop_after=None) per Phase1, not one-shot
     log.info(f"supervisor loop starting {PROCESSES}")
-    sup.start_all()
+    sup.start_all(stop_after=None)
     try:
         while True:
             try:
