@@ -65,7 +65,13 @@ class Supervisor:
         self.failures: Dict[str, List[datetime]] = {p: [] for p in PROCESSES}
         self.attempts: Dict[str, int] = {p: 0 for p in PROCESSES}
         self._procs: Dict[str, multiprocessing.Process] = {}
-        self._ctx = multiprocessing.get_context("spawn")
+        import os as _os
+        # Windows-compatible spawn, but fork on POSIX for test monkeypatch pickle compatibility
+        ctx_name = "spawn" if _os.name == "nt" else "fork"
+        try:
+            self._ctx = multiprocessing.get_context(ctx_name)
+        except Exception:
+            self._ctx = multiprocessing.get_context("spawn")
 
     def record_failure(self, process: str, error: str = "") -> dict:
         """Record failure, return backoff and whether crash-loop FAILED."""
