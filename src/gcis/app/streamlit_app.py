@@ -72,13 +72,32 @@ with colC:
 with colD:
     st.markdown(f"<div class='badge badge-healthy'>DB: OK</div>", unsafe_allow_html=True)
 with colE:
-    # Transport status
-    transport = health.get("details",{}).get("providers",{})
-    ws_status = "WEBSOCKET" if any("binance" in k.lower() for k in transport) else "POLLING"
-    # If no providers yet, show NO DATA
-    if not transport:
-        ws_status = "NO DATA"
-    st.markdown(f"<div class='small'>Transport: {ws_status}</div>", unsafe_allow_html=True)
+    # Truthful transport: WorkerState primary else ProviderStatus fallback (WEBSOCKET/DEGRADED/DISCONNECTED/NO DATA)
+    details = health.get("details", {}) if isinstance(health, dict) else {}
+    transport_status = details.get("transport_status", "NO DATA")
+    if transport_status == "WEBSOCKET":
+        badge_tr = "badge-healthy"
+    elif transport_status == "DEGRADED":
+        badge_tr = "badge-degraded"
+    elif transport_status == "DISCONNECTED":
+        badge_tr = "badge-no-data"
+    else:
+        badge_tr = "badge-no-data"
+    st.markdown(f"<div class='badge {badge_tr}'>Transport: {transport_status}</div>", unsafe_allow_html=True)
+    workers = details.get("workers", {})
+    if workers:
+        st.caption(f"workers:{','.join(f'{k}={v}' for k,v in workers.items())}")
+# Risk truth banner (KillSwitch + DailyRisk) — replaces fake DB:OK assumption
+try:
+    risk = health.get("details", {}).get("risk_status", {}) if isinstance(health, dict) else {}
+    if risk.get("kill_active"):
+        st.error(f"⛔ KILL SWITCH ACTIVE \u2014 {risk.get('kill_mode')} \u2014 {risk.get('kill_reason') or 'operator'} (new entries BLOCKED)")
+    elif risk.get("risk_lock") == "LOCKED":
+        st.warning(f"🔒 DAILY RISK LOCK \u2014 {risk.get('risk_lock')} trades {risk.get('trades_today')} (resets 00:00 UTC)")
+    elif risk.get("risk_lock") == "ACTIVE":
+        st.caption(f"Risk: ACTIVE trades {risk.get('trades_today',0)} \u00b7 PnL {risk.get('daily_realized_pnl','0')}")
+except Exception:
+    pass
 
 # UTC / London / NY times per ANA-03
 from zoneinfo import ZoneInfo
@@ -367,15 +386,38 @@ with tab_risk:
         st.caption("All actions write commands (idempotency_key) → Core validates in same DB transaction (INV-10). Duplicate clicks never double-create.")
 
 with tab_health:
-    st.subheader("System Health")
+    st.subheader("System Health — WorkerState / ProviderStatus / Risk truth (WEBSOCKET/DEGRADED/DISCONNECTED)")
     try:
         h = health
         st.json(h)
-        # providers
-        prov_rows = [{"Provider": k, "Status": v} for k,v in h["details"].get("providers",{}).items()] or [{"Provider":"Binance WS","Status":"NO DATA (sandbox TLS blocked)"},{"Provider":"Binance REST","Status":"NO DATA"},{"Provider":"CoinPaprika","Status":"NOT IMPLEMENTED (tier P1)"}]
-        st.dataframe(pd.DataFrame(prov_rows), use_container_width=True, hide_index=True)
+        details = h.get("details", {}) if isinstance(h, dict) else {}
+        # Worker truth table
+        workers = details.get("worker_details") or []
+        if workers:
+            st.subheader("Workers (WorkerState)")
+            st.dataframe(pd.DataFrame(workers), use_container_width=True, hide_index=True)
+            tr = details.get("transport_status", "NO DATA")
+            st.markdown(f"<div class='badge {'badge-healthy' if tr=='WEBSOCKET' else 'badge-degraded' if tr=='DEGRADED' else 'badge-no-data'}'>Transport: {tr}</div>", unsafe_allow_html=True)
+        else:
+            st.info("No WorkerState yet — transport/analyzer not yet heartbeat (NO DATA is honest — run processes or preflight)")
+        # Provider truth table (detailed)
+        prov_details = details.get("provider_details") or []
+        if prov_details:
+            st.subheader("Providers (ProviderStatus)")
+            st.dataframe(pd.DataFrame(prov_details), use_container_width=True, hide_index=True)
+        else:
+            prov_rows = [{"Provider": k, "Status": v} for k,v in details.get("providers",{}).items()] or [{"Provider":"Binance WS","Status":"NO DATA (sandbox TLS blocked — ProviderStatus warming up)"},{"Provider":"Binance REST","Status":"NO DATA"}]
+            st.dataframe(pd.DataFrame(prov_rows), use_container_width=True, hide_index=True)
+        # Risk truth
+        rs = details.get("risk_status", {})
+        st.subheader("Risk truth")
+        st.json(rs)
+        if rs.get("kill_active"):
+            st.error(f"⛔ KILL SWITCH ACTIVE \u2014 {rs.get('kill_mode')} \u2014 {rs.get('kill_reason')}")
+        elif rs.get("risk_lock") == "LOCKED":
+            st.warning(f"🔒 DAILY RISK LOCK \u2014 LOCKED")
         # metrics
-        st.caption("Metrics: messages_received/dropped/out_of_order, websocket_reconnects, polling_fallbacks, stale_events, analysis_cycles, signals_created/blocked, trades_entered/closed, risk_locks, etc. (ARC-14) — persisted to system_metrics, 1-min rollups.")
+        st.caption("Metrics: messages_received/dropped/out_of_order, websocket_reconnects, polling_fallbacks, stale_events, analysis_cycles, signals_created/blocked, trades_entered/closed, risk_locks, etc. (ARC-14) \u2014 persisted to system_metrics, 1-min rollups.")
     except Exception as e:
         st.error(str(e))
     if st.button("Run healthcheck"):

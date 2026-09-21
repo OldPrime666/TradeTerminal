@@ -1,4 +1,4 @@
-"""Components banner UIX-04 — venue failover + coverage + mode/health."""
+"""Components banner UIX-04 — venue failover + coverage + mode/health (truthful via WorkerState/ProviderStatus)."""
 import streamlit as st
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -14,7 +14,7 @@ def render_banner():
         verdict = health["verdict"]
     except Exception as e:
         verdict = "UNKNOWN"
-        health = {"verdict": verdict}
+        health = {"verdict": verdict, "details": {}}
     colA, colB, colC, colD, colE = st.columns([2.2,1,1,1,1])
     with colA:
         st.markdown(f"<h2 style='margin:0;'>◈ GLOBALCRYPTOICTSCANNER 2026</h2><div class='small'>v{ver['software_version']} · analysis {ver['analysis_version']} · config {ver['config_hash']}</div>", unsafe_allow_html=True)
@@ -27,11 +27,41 @@ def render_banner():
     with colD:
         st.markdown("<div class='badge badge-healthy'>DB: OK</div>", unsafe_allow_html=True)
     with colE:
-        transport = health.get("details",{}).get("providers",{})
-        ws_status = "WEBSOCKET" if any("binance" in k.lower() for k in transport) else "POLLING"
-        if not transport:
-            ws_status = "NO DATA"
-        st.markdown(f"<div class='small'>Transport: {ws_status}</div>", unsafe_allow_html=True)
+        # TRUTHFUL transport: WorkerState.transport.state else ProviderStatus fallback
+        details = health.get("details", {})
+        transport_status = details.get("transport_status", "NO DATA")
+        # Color mapping per spec UIX-04
+        if transport_status == "WEBSOCKET":
+            badge = "badge-healthy"
+        elif transport_status == "DEGRADED":
+            badge = "badge-degraded"
+        elif transport_status == "DISCONNECTED":
+            badge = "badge-no-data"
+        else:
+            badge = "badge-no-data"
+        st.markdown(f"<div class='badge {badge}'>Transport: {transport_status}</div>", unsafe_allow_html=True)
+        # small provenance: worker vs provider
+        workers = details.get("workers", {})
+        providers = details.get("providers", {})
+        if workers:
+            st.caption(f"worker:{','.join(f'{k}={v}' for k,v in workers.items())}", help="WorkerState truth")
+        elif providers:
+            st.caption(f"providers:{len(providers)} (no worker yet — preflight REST)", help="ProviderStatus truth")
+    # Risk banner (truthful): kill_switch + daily risk lock — replaces fake Risk:ACTIVE
+    try:
+        risk = health.get("details", {}).get("risk_status", {})
+        if risk.get("kill_active"):
+            st.error(f"⛔ KILL SWITCH ACTIVE — {risk.get('kill_mode')} — {risk.get('kill_reason') or 'operator'} (new entries BLOCKED)")
+        elif risk.get("risk_lock") == "LOCKED":
+            st.warning(f"🔒 DAILY RISK LOCK — lock={risk.get('risk_lock')} trades_today={risk.get('trades_today')} — new entries BLOCKED (resets 00:00 UTC)")
+        else:
+            # only show ACTIVE if we have data; else warming up
+            if risk.get("risk_lock") == "ACTIVE":
+                st.caption(f"Risk: ACTIVE — trades {risk.get('trades_today',0)} · PnL {risk.get('daily_realized_pnl','0')}")
+            else:
+                st.caption(f"Risk: {risk.get('risk_lock','WARMING_UP')} (daily state not yet initialized)")
+    except Exception:
+        pass
     now_utc = datetime.now(timezone.utc)
     now_london = now_utc.astimezone(ZoneInfo("Europe/London"))
     now_ny = now_utc.astimezone(ZoneInfo("America/New_York"))
