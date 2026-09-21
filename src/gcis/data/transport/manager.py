@@ -15,7 +15,7 @@ from gcis.data.transport.polling import polling_loop_should_run, poll_klines
 from gcis.data.transport.gap import detect_missing_intervals, backfill_missing
 from gcis.data.recorder.store import append_raw
 from gcis.persistence.db import get_session
-from gcis.persistence.models import Candle, EventOutbox, ProviderStatus, WorkerState
+from gcis.persistence.models import Candle, EventOutbox, ProviderStatus, WorkerState, LatestQuote
 from gcis.data.archive.store import normalize_timestamp_to_us
 
 log = logging.getLogger(__name__)
@@ -70,11 +70,106 @@ async def handle_kline_message(payload: dict, received_at_us: int, venue: str = 
             open_time = payload["open_time"]
             close_time = payload.get("close_time") or (open_time + 60_000*1000)
             _persist_candle(venue, symbol, interval, open_time, close_time, payload.get("open"), payload.get("high"), payload.get("low"), payload.get("close"), payload.get("volume"), payload, received_at_us)
+        elif "b" in payload and "a" in payload and "s" in payload:
+            await handle_bookticker_message(payload, received_at_us, venue=venue)
+        elif payload.get("e") == "markPriceUpdate" or ("p" in payload and "s" in payload and "E" in payload):
+            await handle_markprice_message(payload, received_at_us, venue=venue)
         else:
-            # Unknown payload (e.g., bookTicker) — record but not persist as candle
+            # Unknown payload (e.g., forceOrder raw-only) — record but not persist as candle
             log.debug(f"handle_kline: unhandled payload keys {list(payload.keys())[:5]}")
     except Exception as e:
         log.warning(f"handle_kline failed: {e} payload {str(payload)[:300]}")
+
+async def handle_bookticker_message(payload: dict, received_at_us: int, venue: str = "binance_um"):
+    """Persist LatestQuote from bookTicker per §8 — idempotent upsert, validates prices, tracks source/age."""
+    from decimal import Decimal, InvalidOperation
+    try:
+        symbol = payload.get("s")
+        if not symbol:
+            return
+        def to_dec(x):
+            if x is None:
+                return None
+            try:
+                d = Decimal(str(x))
+                if d <= 0:
+                    return None
+                return d
+            except Exception:
+                return None
+        bid = to_dec(payload.get("b"))
+        ask = to_dec(payload.get("a"))
+        if bid is None or ask is None:
+            return
+        if ask <= bid:
+            log.debug(f"bookTicker invalid spread {symbol} bid {bid} ask {ask}")
+            return
+        # last price not in bookTicker — use mid
+        mid = (bid + ask) / 2
+        event_time_us = payload.get("E") or payload.get("u") or 0
+        if isinstance(event_time_us, int) and event_time_us > 1_000_000_000_000:
+            # ms to us
+            event_time_us = event_time_us * 1000
+        updated_at = datetime.fromtimestamp(received_at_us / 1_000_000, tz=timezone.utc)
+        session = get_session()
+        # upsert
+        q = session.get(LatestQuote, symbol)
+        if q is None:
+            q = LatestQuote(symbol=symbol, venue=venue, price=mid, bid=bid, ask=ask, source=venue, updated_at=updated_at)
+            session.add(q)
+        else:
+            q.venue = venue
+            q.price = mid
+            q.bid = bid
+            q.ask = ask
+            q.source = venue
+            q.updated_at = updated_at
+        session.commit()
+        session.close()
+        # Provider health
+        try:
+            s2 = get_session()
+            ps = s2.get(ProviderStatus, f"{venue}:CAP-live_quote")
+            if ps is None:
+                ps = ProviderStatus(provider=f"{venue}:CAP-live_quote", venue=venue, capability="CAP-live_quote")
+                s2.add(ps)
+            ps.status = "HEALTHY"
+            ps.last_success = datetime.now(timezone.utc)
+            ps.data_age_s = int((datetime.now(timezone.utc) - updated_at).total_seconds())
+            s2.commit()
+            s2.close()
+        except Exception:
+            pass
+    except Exception as e:
+        log.debug(f"handle_bookticker failed {e}")
+
+async def handle_markprice_message(payload: dict, received_at_us: int, venue: str = "binance_um"):
+    """Persist mark price into LatestQuote.mark_price."""
+    from decimal import Decimal
+    try:
+        symbol = payload.get("s")
+        mark = payload.get("p")
+        if not symbol or mark is None:
+            return
+        try:
+            mark_d = Decimal(str(mark))
+            if mark_d <= 0:
+                return
+        except Exception:
+            return
+        updated_at = datetime.fromtimestamp(received_at_us / 1_000_000, tz=timezone.utc)
+        session = get_session()
+        q = session.get(LatestQuote, symbol)
+        if q is None:
+            q = LatestQuote(symbol=symbol, venue=venue, price=mark_d, mark_price=mark_d, source=venue, updated_at=updated_at)
+            session.add(q)
+        else:
+            q.mark_price = mark_d
+            q.updated_at = updated_at
+        session.commit()
+        session.close()
+    except Exception as e:
+        log.debug(f"handle_markprice failed {e}")
 
 def _persist_candle(venue: str, symbol: str, timeframe: str, open_time_us: int, close_time_us: int, open_p, high, low, close, volume, raw_payload: dict, received_at_us: int):
     """
@@ -222,8 +317,8 @@ class TransportManager:
                         append_raw(venue, group, payload, ts_us)
                     except Exception as e:
                         log.debug(f"raw recorder failed: {e}")
-                    # Only kline triggers candle persist
-                    if isinstance(payload, dict) and ("k" in payload or "open_time" in payload):
+                    # Route to kline/quote handlers — kline, polling, bookTicker, markPrice
+                    if isinstance(payload, dict) and ("k" in payload or "open_time" in payload or ("b" in payload and "a" in payload) or payload.get("e") == "markPriceUpdate" or ("p" in payload and "s" in payload)):
                         await handle_kline_message(payload, ts_us, venue=venue)
                 conn = WSConnection(
                     venue=self.venue,
