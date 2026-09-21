@@ -71,9 +71,10 @@ def test_ingest_populates_candle_and_backtest_nonzero(monkeypatch, tmp_path):
     candles2 = s2.query(Candle).filter(Candle.venue==venue, Candle.symbol==symbol, Candle.timeframe==timeframe).all()
     assert len(candles2) == 60
     s2.close()
-    # now backtest should see non-zero bars via repo (without df_override)
+    # now backtest should see non-zero bars via repo (without df_override) — injected via DI (Phase7)
     from gcis.backtest.engine import run_backtest
-    res = run_backtest(symbols=[symbol], timeframe=timeframe)
+    from gcis.persistence.candle_repo import SqlAlchemyCandleRepository
+    res = run_backtest(symbols=[symbol], timeframe=timeframe, candle_repo=SqlAlchemyCandleRepository())
     # With 60 bars, backtest warmup is 50, so should have some trades or at least not NO_DATA
     assert res["status"] != "NO DATA", f"backtest status {res}"
     assert res["bars"] >= 60 or res.get("metrics", {}).get("bars", 0) >= 60 or res.get("trades_count", 0) >= 0
@@ -98,6 +99,7 @@ def test_ingest_bridge_no_fabrication_stale(monkeypatch, tmp_path):
     with pytest.raises(ValueError):
         ingest_rows_to_parquet("binance_um", "BTCUSDT", "1m", [], date_str="2024-01-01")
     from gcis.backtest.engine import run_backtest
+    from gcis.persistence.candle_repo import SqlAlchemyCandleRepository
     # with empty DB, backtest should be NO DATA, not fake
-    res = run_backtest(symbols=["BTCUSDT"], timeframe="1m")
+    res = run_backtest(symbols=["BTCUSDT"], timeframe="1m", candle_repo=SqlAlchemyCandleRepository())
     assert res["status"] == "NO DATA"

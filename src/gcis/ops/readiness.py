@@ -59,7 +59,8 @@ def _check_backup(config: dict) -> Dict[str,Any]:
 def _check_census(config: dict) -> Dict[str,Any]:
     try:
         from gcis.backtest.census import run_census
-        cen = run_census(symbols=None, timeframe="15m")
+        from gcis.persistence.candle_repo import SqlAlchemyCandleRepository
+        cen = run_census(symbols=None, timeframe="15m", candle_repo=SqlAlchemyCandleRepository())
         verdict = cen.get("feasibility_verdict","NONE")
         ok = verdict != "NONE"
         return {"verdict": verdict, "total_candles": cen.get("total_candles"), "ok": ok, "note": "BKT-06 census Tier"}

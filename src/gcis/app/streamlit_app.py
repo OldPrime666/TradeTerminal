@@ -295,7 +295,8 @@ with tab_scanner:
     if st.button("Run Signal Census (BKT-06)"):
         try:
             from gcis.backtest.census import run_census
-            res = run_census()
+            from gcis.persistence.candle_repo import SqlAlchemyCandleRepository
+            res = run_census(candle_repo=SqlAlchemyCandleRepository())
             st.json(res)
             st.success(f"Feasibility verdict: {res['feasibility_verdict']}")
         except Exception as e:
@@ -434,7 +435,8 @@ with tab_research:
     if st.button("Run Backtest (demo on available candles)"):
         try:
             from gcis.backtest.engine import run_backtest
-            res = run_backtest(symbols=[selected_symbol], timeframe=timeframe)
+            from gcis.persistence.candle_repo import SqlAlchemyCandleRepository
+            res = run_backtest(symbols=[selected_symbol], timeframe=timeframe, candle_repo=SqlAlchemyCandleRepository())
             st.json(res)
             st.caption("Backtest always reports data fidelity & lineage; degraded → DEGRADED_DATA_TEST (INV-19). Baseline verdict: EDGE vs BASELINE significance (BKT-05).")
         except Exception as e:

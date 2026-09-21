@@ -84,17 +84,19 @@ def test_sizing_rounds_down_props():
     assert qty3==0
 
 def test_kill_switch_atomic_separate_close():
-    # RSK-06 kill switch atomic, separate close command
+    # RSK-06 kill switch atomic, separate close command — via KillSwitchStore protocol (no dynamic import)
     from gcis.persistence.db import get_session, init_db
     from gcis.persistence.models import KillSwitchState
+    from gcis.persistence.kill_switch_repo import SqlAlchemyKillSwitchStore
     init_db()
     session=get_session()
     # clear
     session.query(KillSwitchState).delete()
     session.commit()
+    store = SqlAlchemyKillSwitchStore(session)
     # activate
-    activate_kill_switch(session, reason="test RSK-06", mode="BLOCK_NEW_TRADES")
-    assert is_kill_switch_active(session) == True
+    activate_kill_switch(store, reason="test RSK-06", mode="BLOCK_NEW_TRADES")
+    assert is_kill_switch_active(store) == True
     # risk manager should block new trades but allow closes (is_close flag)
     cfg={"risk":{"risk_per_trade_pct":0.25,"max_daily_loss_pct":1.5,"max_trades_per_day":6,"max_concurrent_positions":3,"max_open_worst_case_risk_pct":10,"max_per_symbol_risk_pct":10,"locks":{"max_spread_bps":15}}}
     rm=RiskManager(cfg)
@@ -105,8 +107,8 @@ def test_kill_switch_atomic_separate_close():
     res_close = rm.check({"leverage":3,"spread_bps":5,"is_close":True},{"risk_lock":"ACTIVE","trades_today":0,"current_equity":10000},0.0,True,{"open_positions":1})
     assert res_close["allowed"] == True
     # deactivate
-    deactivate_kill_switch(session)
-    assert is_kill_switch_active(session) == False
+    deactivate_kill_switch(store)
+    assert is_kill_switch_active(store) == False
     session.close()
 
 def test_paper_fill_conservative_no_mid_and_slippage():

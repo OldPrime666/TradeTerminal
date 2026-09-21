@@ -1,47 +1,39 @@
 import pandas as pd
 from collections import Counter
-from datetime import timezone
 
-# Domain must not import sqlalchemy static — load persistence dynamically
+from gcis.backtest.ports import CandleRepository
 from gcis.data.quality.report import quality_report
 
-def get_session():
-    """Wrapper for persistence session — dynamic import to hide sqlalchemy from lint.
-
-    Tests monkeypatch this to provide in-memory DB.
-    """
-    import importlib
-    return importlib.import_module("gcis.persistence.db").get_session()
-
-def run_census(symbols: list | None = None, timeframe: str = "15m"):
+def run_census(symbols: list | None = None, timeframe: str = "15m", candle_repo: CandleRepository | None = None):
     """
     BKT-06 census Tier verdict + BKT-10 backtestability + BKT-12 survivorship.
-    - Counts per symbol/timeframe from Candle (survivorship-aware: includes delisted history).
-    - History length per symbol in days, gap report, effective_sample (overlap-adjusted placeholder).
-    - Verdict: NONE (<1000), TIER_POOLED_ONLY (1000-5000), TIER_STRATEGY (>5000) per Part12.
-    - Backtestability statuses per symbol: OK/GAP/INSUFFICIENT_HISTORY/NO_DATA.
-    - Regime discrimination note.
+    Accepts injected CandleRepository (no direct sqlalchemy import).
+    If no repo provided → NO_DATA honest (caller must inject from app layer).
     """
-    # Dynamic persistence load to satisfy import-linter (domain must not import sqlalchemy)
-    try:
-        import importlib
-        models_mod = importlib.import_module("gcis.persistence.models")
-        Candle = models_mod.Candle
-        db = get_session()
+    rows = []
+    if candle_repo is not None:
         try:
-            q = db.query(Candle.symbol, Candle.timeframe, Candle.open_time, Candle.close_time)
-            if symbols:
-                q = q.filter(Candle.symbol.in_(symbols))
-            if timeframe:
-                q = q.filter(Candle.timeframe == timeframe)
-            rows = q.order_by(Candle.open_time).all()
-        finally:
-            db.close()
-    except Exception:
+            # fetch via repo — need to handle repo interface that returns Candle objects
+            # For census we need symbol/timeframe/open_time/close_time; repo.fetch returns list of Candle
+            raw = candle_repo.fetch(symbols if symbols else ["BTCUSDT"], timeframe, None, None, limit=100000)
+            # raw may be list of Candle objects; normalize to rows with needed attrs
+            # If repo returns already filtered, use as is
+            if raw:
+                # If symbols filter was applied in repo, raw already filtered; else filter here
+                if symbols:
+                    rows = [r for r in raw if getattr(r, "symbol", None) in symbols]
+                else:
+                    rows = raw
+            else:
+                rows = []
+        except Exception:
+            rows = []
+    else:
         rows = []
+
     total = len(rows)
-    cnt = Counter([(r.symbol, r.timeframe) for r in rows])
-    per_symbol_counts = Counter([r.symbol for r in rows])
+    cnt = Counter([(r.symbol, r.timeframe) for r in rows]) if rows else Counter()
+    per_symbol_counts = Counter([r.symbol for r in rows]) if rows else Counter()
     per_symbol_days = {}
     for sym in per_symbol_counts:
         tf_min = {"1m":1,"5m":5,"15m":15,"1h":60,"4h":240,"1d":1440}.get(timeframe,15)

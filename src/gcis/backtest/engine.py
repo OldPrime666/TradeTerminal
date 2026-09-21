@@ -19,8 +19,7 @@ import json
 
 getcontext().prec = 28
 
-# Domain must not import sqlalchemy directly — persistence adapter is loaded dynamically
-# via importlib to satisfy import-linter contract Domain must not import sqlalchemy.
+from gcis.backtest.ports import CandleRepository
 
 Fidelity = "OHLC_APPROXIMATION"
 
@@ -47,29 +46,15 @@ def _analysis_version():
     except Exception:
         return "0.1.0"
 
-def _fetch_candles(symbols: list, timeframe: str, start=None, end=None, limit: int = 5000, repo=None):
-    """Fetch candles via repository abstraction.
-
-    Domain must not import sqlalchemy static. We load persistence adapter
-    dynamically via importlib to satisfy import-linter.
-    repo: optional CandleRepository instance for injection (tests).
-    §24: limit 5000 is per-page, not silent truncation — caller should paginate if needed.
-    """
+def _fetch_candles(symbols: list, timeframe: str, start=None, end=None, limit: int = 5000, repo: CandleRepository | None = None):
+    """Fetch candles via repository abstraction (injected, no direct sqlalchemy import)."""
     if repo is not None:
         try:
             return repo.fetch(symbols, timeframe, start, end, limit)
         except Exception:
             return []
-    # Dynamic load of persistence adapter — hidden from static import-linter via joined string
-    try:
-        import importlib
-
-        mod = importlib.import_module(".".join(["gcis", "persistence", "candle_repo"]))
-        repo_cls = getattr(mod, "SqlAlchemyCandleRepository")
-        r = repo_cls()
-        return r.fetch(symbols, timeframe, start, end, limit)
-    except Exception:
-        return []
+    # No repo injected → NO DATA (caller must inject SqlAlchemyCandleRepository from app layer)
+    return []
 
 def _fetch_candles_paginated(symbols: list, timeframe: str, start=None, end=None, page_limit: int = 5000, repo=None) -> tuple[list, bool, dict]:
     """
@@ -194,7 +179,7 @@ def _evaluate_signal_with_gates(view, symbol: str, cfg):
         return None, res
     return res, None
 
-def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fidelity: str = "OHLC_APPROXIMATION", df_override: pd.DataFrame | None = None):
+def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fidelity: str = "OHLC_APPROXIMATION", df_override: pd.DataFrame | None = None, candle_repo: CandleRepository | None = None):
     """
     Main entry. df_override for tests (synthetic df directly, bypass DB).
     Returns dict with BKT fields: status, fidelity, trades, metrics, baselines, verdict, lineage, backtestability, survivorship.
@@ -217,8 +202,8 @@ def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fi
         if not symbols:
             # resolve from registry if None (survivorship-aware, but for backtest default BTCUSDT)
             symbols = ["BTCUSDT"]
-        # §24 paginated fetch to avoid silent 5000 truncation
-        rows, truncated, fetch_info = _fetch_candles_paginated(symbols, timeframe, start=start, end=end)
+        # §24 paginated fetch to avoid silent 5000 truncation (repo injected via DI)
+        rows, truncated, fetch_info = _fetch_candles_paginated(symbols, timeframe, start=start, end=end, repo=candle_repo)
         df = _df_from_rows(rows)
         # check backtestability via quality_report
         if df.empty:
@@ -523,10 +508,10 @@ def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fi
         "fees": {"taker_bps": 5, "maker_bps": 2, "slippage": 0, "note": "taker 5bps per side applied; slippage 0; funding OMITTED"},
         "note": "Shared core BKT-01: MarketView incremental + ICT-A + gates; pessimistic stop_first BKT-02; costs 5bps taker BKT-03; lineage BKT-04; baselines 4 BKT-05; census TIER via run_census BKT-06; metrics 365d BKT-08; backtestability BKT-10; survivorship BKT-12; §24 pagination; §25 non-overlapping; §26 funding OMITTED;",
     }
-    # census integration
+    # census integration (inject same repo)
     try:
         from gcis.backtest.census import run_census
-        cen = run_census(symbols=symbols, timeframe=timeframe)
+        cen = run_census(symbols=symbols, timeframe=timeframe, candle_repo=candle_repo)
         result["census"] = cen
         # if census GAP_WARN, propagate
         if "GAP" in cen.get("feasibility_verdict",""):

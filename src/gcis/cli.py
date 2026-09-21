@@ -123,14 +123,13 @@ def cmd_verify(args):
     except Exception as e:
         all_ok=False
         add("config_load", False, str(e))
-    # DB migrations
+    # DB migrations — real alembic check (Phase8, no create_all fallback)
     try:
-        from gcis.persistence.db import init_db, get_session
+        from gcis.persistence.db import init_db, preflight_alembic_version
         engine = init_db()
-        # try create tables
-        from gcis.persistence.models import Base
-        Base.metadata.create_all(bind=engine)
-        add("db_migrations", True, str(engine.url))
+        chk = preflight_alembic_version(engine)
+        ok = bool(chk.get("ok") and chk.get("current") == chk.get("head"))
+        add("db_migrations", ok, f"{engine.url} version {chk.get('current')} head {chk.get('head')} ok={ok} {chk.get('error','')}".strip())
     except Exception as e:
         all_ok=False
         add("db_migrations", False, str(e))
@@ -224,7 +223,9 @@ def cmd_backtest(args):
     print("=== Backtest ===")
     try:
         from gcis.backtest.engine import run_backtest
-        res = run_backtest(symbols=args.symbols, timeframe=args.timeframe, start=args.start, end=args.end)
+        from gcis.persistence.candle_repo import SqlAlchemyCandleRepository
+        repo = SqlAlchemyCandleRepository()
+        res = run_backtest(symbols=args.symbols, timeframe=args.timeframe, start=args.start, end=args.end, candle_repo=repo)
         print(json.dumps(res, indent=2, default=str))
     except Exception as e:
         print(f"Backtest error: {e}", file=sys.stderr)
@@ -271,7 +272,8 @@ def cmd_census(args):
     print("=== Signal Census ===")
     try:
         from gcis.backtest.census import run_census
-        out = run_census()
+        from gcis.persistence.candle_repo import SqlAlchemyCandleRepository
+        out = run_census(candle_repo=SqlAlchemyCandleRepository())
         print(json.dumps(out, indent=2, default=str))
     except Exception as e:
         print(f"Census error: {e}", file=sys.stderr)

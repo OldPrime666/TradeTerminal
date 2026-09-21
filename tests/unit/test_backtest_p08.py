@@ -100,7 +100,7 @@ def test_baselines_four_and_verdict():
         assert res["verdict"] in ["INSUFFICIENT_TRADES","INCONCLUSIVE","OUTPERFORMS_BASELINES","ABOVE_AVERAGE_BASELINES","UNDERPERFORMS","ERROR"]
 
 def test_census_tier_verdict(monkeypatch, tmp_path):
-    # Use in-memory DB with synthetic candles
+    # Use in-memory DB with synthetic candles — via CandleRepository injection (Phase7 DI)
     from gcis.persistence.db import Base, get_engine
     from sqlalchemy.orm import sessionmaker
     from gcis.persistence.models import Candle
@@ -117,9 +117,14 @@ def test_census_tier_verdict(monkeypatch, tmp_path):
         c = Candle(venue="binance_um", symbol="BTCUSDT", timeframe="15m", open_time=ot, close_time=ct, open=Decimal("100"), high=Decimal("101"), low=Decimal("99"), close=Decimal("100.5"), volume=Decimal("10"), quote_volume=Decimal("1000"), trade_count=100, taker_buy_volume=Decimal("5"))
         sess.add(c)
     sess.commit()
-    monkeypatch.setattr("gcis.backtest.census.get_session", lambda: sess)
-    # also patch engine's get_session for census internal? already patched
-    out = census_mod.run_census(symbols=["BTCUSDT"], timeframe="15m")
+    class _Repo:
+        def fetch(self, symbols, timeframe, start=None, end=None, limit=100000):
+            q = sess.query(Candle).filter(Candle.symbol.in_(symbols), Candle.timeframe==timeframe).order_by(Candle.open_time.asc())
+            if limit:
+                q = q.limit(limit)
+            return q.all()
+    repo = _Repo()
+    out = census_mod.run_census(symbols=["BTCUSDT"], timeframe="15m", candle_repo=repo)
     assert out["total_candles"] == 1200
     assert out["feasibility_verdict"] == "TIER_POOLED_ONLY"
     assert "backtestability" in out
@@ -131,7 +136,7 @@ def test_census_tier_verdict(monkeypatch, tmp_path):
         c = Candle(venue="binance_um", symbol="BTCUSDT", timeframe="15m", open_time=ot, close_time=ct, open=Decimal("100"), high=Decimal("101"), low=Decimal("99"), close=Decimal("100.5"), volume=Decimal("10"), quote_volume=Decimal("1000"), trade_count=100, taker_buy_volume=Decimal("5"))
         sess.add(c)
     sess.commit()
-    out2 = census_mod.run_census(symbols=["BTCUSDT"], timeframe="15m")
+    out2 = census_mod.run_census(symbols=["BTCUSDT"], timeframe="15m", candle_repo=repo)
     assert out2["feasibility_verdict"] == "TIER_STRATEGY"
     sess.close()
 
@@ -169,8 +174,7 @@ def test_survivorship_note():
     res = run_backtest(symbols=["BTCUSDT"], timeframe="15m", df_override=df)
     assert "survivorship_note" in res
     assert "survivorship" in res["survivorship_note"].lower() or "delisted" in res["survivorship_note"].lower()
-    # census also
-    from unittest.mock import patch
+    # census also — injected repo (Phase7 DI) — empty still has survivorship note
     from gcis.persistence.db import Base, get_engine
     from sqlalchemy.orm import sessionmaker
     from gcis.persistence.models import Candle
@@ -179,10 +183,11 @@ def test_survivorship_note():
     Base.metadata.create_all(bind=engine)
     SessionLocal = sessionmaker(bind=engine)
     sess = SessionLocal()
-    # empty should have survivorship note
-    with patch("gcis.backtest.census.get_session", lambda: sess):
-        out = census_mod.run_census(symbols=["BTCUSDT"], timeframe="15m")
-        assert "survivorship_note" in out
+    class _EmptyRepo:
+        def fetch(self, symbols, timeframe, start=None, end=None, limit=100000):
+            return sess.query(Candle).filter(Candle.symbol.in_(symbols), Candle.timeframe==timeframe).all()
+    out = census_mod.run_census(symbols=["BTCUSDT"], timeframe="15m", candle_repo=_EmptyRepo())
+    assert "survivorship_note" in out
 
 def test_same_core_uses_marketview_and_gates():
     # Ensure backtest uses MarketView incremental (causal) — test that future bar not visible at as_of
