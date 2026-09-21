@@ -53,6 +53,7 @@ def _fetch_candles(symbols: list, timeframe: str, start=None, end=None, limit: i
     Domain must not import sqlalchemy static. We load persistence adapter
     dynamically via importlib to satisfy import-linter.
     repo: optional CandleRepository instance for injection (tests).
+    §24: limit 5000 is per-page, not silent truncation — caller should paginate if needed.
     """
     if repo is not None:
         try:
@@ -69,6 +70,76 @@ def _fetch_candles(symbols: list, timeframe: str, start=None, end=None, limit: i
         return r.fetch(symbols, timeframe, start, end, limit)
     except Exception:
         return []
+
+def _fetch_candles_paginated(symbols: list, timeframe: str, start=None, end=None, page_limit: int = 5000, repo=None) -> tuple[list, bool, dict]:
+    """
+    §24 paginated loading: fetch beyond 5000 without silent truncation.
+    Returns (rows, truncated, info) where truncated indicates hit limit and may have more,
+    info contains requested/actual period, bar counts, truncation status.
+    """
+    all_rows = []
+    current_start = start
+    truncated = False
+    pages = 0
+    max_pages = 200  # safety: 200*5000 = 1M bars
+    while pages < max_pages:
+        batch = _fetch_candles(symbols, timeframe, start=current_start, end=end, limit=page_limit, repo=repo)
+        if not batch:
+            break
+        # Avoid infinite loop on same batch (dedup by open_time)
+        if all_rows and batch[0].open_time == all_rows[-1].open_time:
+            # duplicate page, break
+            break
+        all_rows.extend(batch)
+        pages += 1
+        if len(batch) < page_limit:
+            break
+        # Need next page: set start to last open_time + 1 interval
+        # Use batch last open_time as cursor (exclusive)
+        last_ot = batch[-1].open_time
+        # Convert to iso string for next fetch
+        if hasattr(last_ot, "isoformat"):
+            # add 1 minute (or timeframe) to avoid duplicate? simplest add 1ms
+            try:
+                from datetime import timedelta
+                next_dt = last_ot + timedelta(milliseconds=1)
+                current_start = next_dt.isoformat()
+            except Exception:
+                current_start = last_ot.isoformat() if hasattr(last_ot, "isoformat") else str(last_ot)
+        else:
+            current_start = str(last_ot)
+        # If we fetched exactly page_limit and there may be more, continue; but if we already have huge, break
+        if pages * page_limit >= 1000000:
+            truncated = True
+            break
+        # If batch == page_limit, assume may be truncated, continue
+        # else break already
+        if len(batch) == page_limit:
+            truncated = True
+            # continue fetching next page unless we hit max_pages
+            continue
+        else:
+            truncated = False
+            break
+    # If we fetched multiple pages, truncated flag already indicates we attempted pagination;
+    # For single page with < limit, not truncated. For single page == limit but we fetched next and got 0, then not truncated.
+    # Simplify: truncated = (pages > 1 and len(all_rows) >= page_limit) or (pages == 1 and len(batch) == page_limit and not truncated check)
+    # Actually if we fetched one full page and next batch was empty, then not truncated.
+    # Our loop already handles: if second batch empty, we break with truncated still True from previous iteration but should be False.
+    # So recompute: if last batch < page_limit, not truncated.
+    if all_rows and len(batch) < page_limit:
+        truncated = False
+    info = {
+        "requested_start": str(start) if start else None,
+        "requested_end": str(end) if end else None,
+        "actual_start": all_rows[0].open_time.isoformat() if all_rows and hasattr(all_rows[0].open_time, "isoformat") else None,
+        "actual_end": all_rows[-1].open_time.isoformat() if all_rows and hasattr(all_rows[-1].open_time, "isoformat") else None,
+        "bars": len(all_rows),
+        "pages": pages,
+        "truncated": truncated,
+        "page_limit": page_limit,
+    }
+    return all_rows, truncated, info
 
 def _df_from_rows(rows):
     if not rows:
@@ -99,30 +170,28 @@ def _df_from_rows(rows):
 def _evaluate_signal_with_gates(view, symbol: str, cfg):
     """
     Shared core: evaluate ICT-A then gates. Returns StrategyResult if eligible and gates pass.
-    BKT-01 same core as live.
+    BKT-01 same core as live. §22: gates must not be silently bypassed; errors block.
     """
+    import logging
+    log = logging.getLogger(__name__)
     from gcis.strategies.ict_a import evaluate_ict_a
-    from gcis.signals.gates import evaluate_mv_gates, evaluate_px_gates, is_mv_pass
+    from gcis.signals.gates import evaluate_mv_gates, evaluate_px_gates
     # run strategy
     res = evaluate_ict_a(view, symbol, cfg)
     if not res.eligible:
         return None, res
-    # gates
-    # mv gates: need market quality etc. For backtest, we simulate quality OK; but we still call
-    mv_reasons = evaluate_mv_gates(view, symbol, timeframe=res.primary_timeframe or "15m", config=cfg)
-    px_reasons = evaluate_px_gates(symbol, timeframe=res.primary_timeframe or "15m", config=cfg)  # may need more args, fallback to empty
-    # For backtest, we consider mv pass if no BLOCK reasons; simplified
-    # If gates block, return None
-    # Note: evaluate_px_gates signature may require more; catch
+    # gates — explicit handling, never silent PASS on error
     try:
-        from gcis.signals.gates import is_mv_pass, is_px_pass
-        if not is_mv_pass(mv_reasons):
-            return None, res
-        if not is_px_pass(px_reasons):
-            return None, res
-    except Exception:
-        # if gates fail to evaluate, treat as pass for backtest (offline)
-        pass
+        mv_reasons = evaluate_mv_gates(res, view, symbol, cfg)
+        px_reasons = evaluate_px_gates(res, {}, False, False)
+    except Exception as e:
+        log.warning(f"gate evaluation error {symbol}: {e}")
+        # §22: code error / config missing → explicit degraded, block signal (not PASS)
+        return None, res
+    if mv_reasons:
+        return None, res
+    if px_reasons:
+        return None, res
     return res, None
 
 def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fidelity: str = "OHLC_APPROXIMATION", df_override: pd.DataFrame | None = None):
@@ -148,7 +217,8 @@ def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fi
         if not symbols:
             # resolve from registry if None (survivorship-aware, but for backtest default BTCUSDT)
             symbols = ["BTCUSDT"]
-        rows = _fetch_candles(symbols, timeframe, start=start, end=end)
+        # §24 paginated fetch to avoid silent 5000 truncation
+        rows, truncated, fetch_info = _fetch_candles_paginated(symbols, timeframe, start=start, end=end)
         df = _df_from_rows(rows)
         # check backtestability via quality_report
         if df.empty:
@@ -227,8 +297,9 @@ def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fi
     # For multi-symbol, we loop per symbol separately but for P08 we simplify to first symbol single df
     symbol = symbols[0] if symbols else "SYNTH"
     # Ensure df has required cols for MarketView: open_time, close_time, open, high, low, close, volume
-    # Loop from 50 to len(df)-1 to have enough history for indicators (50 bars warmup)
-    for i in range(50, len(df)-1):
+    # §25 non-overlapping trades: use while loop to allow skipping to exit_bar (§25 deterministic)
+    i = 50
+    while i < len(df) - 1:
         as_of = df.iloc[i]["close_time"]
         if isinstance(as_of, str):
             as_of = pd.Timestamp(as_of)
@@ -243,53 +314,71 @@ def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fi
         try:
             view = MarketView(as_of=as_of, candles={symbol: {timeframe: sub}}, quotes={symbol: {"updated_at": as_of, "price": float(sub.iloc[-1]["close"])}})
         except Exception as e:
+            i += 1
             continue
         # strategy
         try:
             res = evaluate_ict_a(view, symbol, cfg)
         except Exception:
+            i += 1
             continue
         if not res.eligible:
+            i += 1
             continue
-        # gates (soft, don't block for backtest if config missing) — BKT-01 same mv/px as live
+        # gates — BKT-01 same mv/px as live, §22 no silent bypass
         try:
-            from gcis.signals.gates import evaluate_mv_gates, evaluate_px_gates, is_mv_pass, is_px_pass
+            from gcis.signals.gates import evaluate_mv_gates, evaluate_px_gates
             mv_reasons = evaluate_mv_gates(res, view, symbol, cfg)
             px_reasons = evaluate_px_gates(res, {}, False, False)
-            if mv_reasons and not is_mv_pass(res, view, symbol, cfg):
-                continue
-            if px_reasons and not is_px_pass(res, {}, False, False):
-                continue
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"gate evaluation error {symbol} at bar {i}: {e}")
+            i += 1
+            continue
+        if mv_reasons:
+            i += 1
+            continue
+        if px_reasons:
+            i += 1
+            continue
 
         # eligible signal -> create trade (StrategyResult contract STR-01)
-        # entry_zone is tuple (low, high) per STR-01; invalidation is stop; targets is list
+        # §23: Do not invent stop/target geometry — use actual strategy values, else mark invalid
         try:
-            if getattr(res, "entry_zone", None) and len(res.entry_zone) == 2:
+            if getattr(res, "entry_zone", None) and len(res.entry_zone) == 2 and res.entry_zone[0] is not None and res.entry_zone[1] is not None:
                 entry = float((Decimal(str(res.entry_zone[0])) + Decimal(str(res.entry_zone[1]))) / 2)
             else:
-                entry = float(sub.iloc[-1]["close"])
+                # No entry_zone → invalid setup
+                i += 1
+                continue
         except Exception:
-            entry = float(sub.iloc[-1]["close"])
+            i += 1
+            continue
         try:
-            stop = float(res.invalidation) if getattr(res, "invalidation", None) is not None else (entry * 0.995 if res.direction == "LONG" else entry * 1.005)
+            stop = float(res.invalidation) if getattr(res, "invalidation", None) is not None else None
         except Exception:
-            stop = entry * 0.995 if res.direction == "LONG" else entry * 1.005
+            stop = None
+        if stop is None or stop <= 0:
+            i += 1
+            continue
+        # Validate stop direction sensible
+        if (res.direction == "LONG" and stop >= entry) or (res.direction == "SHORT" and stop <= entry):
+            i += 1
+            continue
         targets = getattr(res, "targets", None)
+        target = None
         if isinstance(targets, (list, tuple)) and len(targets) > 0 and targets[0] is not None:
             try:
                 target = float(targets[0])
             except:
                 target = None
-        else:
-            target = None
-        if target is None:
-            dist = abs(entry - stop)
-            if res.direction == "LONG":
-                target = entry + dist * 2
-            else:
-                target = entry - dist * 2
+        if target is None or target <= 0:
+            i += 1
+            continue
+        # Validate RR at least >0
+        if (res.direction == "LONG" and target <= entry) or (res.direction == "SHORT" and target >= entry):
+            i += 1
+            continue
 
         direction = getattr(res, "direction", "LONG")
         # Simulate exit pessimistically over next bars
@@ -357,13 +446,17 @@ def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fi
         # limit to avoid huge runtime, but for metrics we cap at maybe 200 trades
         if len(trades) >= 200:
             break
-        # skip ahead to exit_bar to avoid overlapping trades (avoid double count)
-        # For overlap-adjusted sample, we skip; for now we continue but we could skip i to exit_bar
-        # We will skip i to exit_bar to be conservative
-        # Update i loop variable can't easily skip, but we can fast-forward by setting next i
-        # Instead we just continue; overlap will be handled in census effective_sample note.
-        # For P08 we implement skip by incrementing i to exit_bar
-        # Since we are in for loop, we can't skip easily, but we can use while loop? Simplify: keep as is for now.
+        # §25 non-overlapping: skip to exit_bar + 1 (deterministic portfolio-aware: no concurrent overlapping)
+        if exit_bar is not None and exit_bar > i:
+            i = exit_bar + 1
+        else:
+            i += 1
+        continue
+    # If loop fell through without trade, the continues already handled i increment
+    # But we need to ensure while loop progresses for non-continue paths that didn't hit trade
+    # The above continue handles trade case; for other paths, i already incremented via continue
+    # For safety, if we ever reach here without increment (should not), increment
+    # (This line is unreachable due to continues, but kept for static analysis)
 
     # metrics 365d
     metrics = compute_metrics(trades, bars=len(df), timeframe=timeframe, annualization_days=cfg.get("backtest",{}).get("annualization_days",365))
@@ -389,12 +482,22 @@ def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fi
     except Exception:
         backtestability[symbol] = "UNKNOWN"
 
-    # overall status: if GAP then GAP, else metrics status
+    # overall status: if GAP then GAP, else metrics status — §24 truncation handling
     overall_status = status
     if backtestability.get(symbol) == "GAP":
         overall_status = "GAP"
     elif metrics.get("status") == "INSUFFICIENT_TRADES" and len(df) < 100:
         overall_status = "INSUFFICIENT_HISTORY"
+    # §24: if paginated fetch truncated, mark fidelity as truncated and propagate info
+    fetch_truncated = False
+    fetch_info_local = {}
+    try:
+        fetch_truncated = truncated  # from paginated fetch
+        fetch_info_local = fetch_info
+        if fetch_truncated:
+            overall_status = "TRUNCATED" if overall_status == "OK" else overall_status + "_TRUNCATED"
+    except Exception:
+        pass
 
     result = {
         "status": overall_status,
@@ -414,7 +517,11 @@ def run_backtest(symbols: list, timeframe: str = "15m", start=None, end=None, fi
         },
         "backtestability": backtestability,
         "survivorship_note": "Survivorship-aware: includes delisted history via Candle table; not filtered to TRADING only (BKT-12).",
-        "note": "Shared core BKT-01: MarketView incremental + ICT-A + gates; pessimistic stop_first BKT-02; costs 5bps taker BKT-03; lineage BKT-04; baselines 4 BKT-05; census TIER via run_census BKT-06; metrics 365d BKT-08; backtestability BKT-10; survivorship BKT-12.",
+        "fetch_info": fetch_info_local,
+        "truncation": {"truncated": fetch_truncated, "info": fetch_info_local, "note": "§24 paginated 5000/page, no silent truncation; TRUNCATED status if hit limit without full period"},
+        "funding": {"cost": 0, "status": "OMITTED", "note": "§26 funding OMITTED — historical funding not yet integrated; fidelity marked OMITTED, not hidden"},
+        "fees": {"taker_bps": 5, "maker_bps": 2, "slippage": 0, "note": "taker 5bps per side applied; slippage 0; funding OMITTED"},
+        "note": "Shared core BKT-01: MarketView incremental + ICT-A + gates; pessimistic stop_first BKT-02; costs 5bps taker BKT-03; lineage BKT-04; baselines 4 BKT-05; census TIER via run_census BKT-06; metrics 365d BKT-08; backtestability BKT-10; survivorship BKT-12; §24 pagination; §25 non-overlapping; §26 funding OMITTED;",
     }
     # census integration
     try:
