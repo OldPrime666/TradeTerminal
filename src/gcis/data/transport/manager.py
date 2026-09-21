@@ -174,7 +174,9 @@ async def handle_markprice_message(payload: dict, received_at_us: int, venue: st
             session.add(q)
         else:
             q.mark_price = mark_d
-            q.updated_at = updated_at
+            # ITEM7: do not overwrite price updated_at — track mark separately (fail-closed freshness)
+            # price freshness stays from bookTicker; mark freshness uses persisted_atdelta only
+            # keep q.updated_at unchanged for price; only update mark_price and its own timestamps via persisted_at
             q.received_at = received_at
             q.persisted_at = datetime.now(timezone.utc)
         session.commit()
