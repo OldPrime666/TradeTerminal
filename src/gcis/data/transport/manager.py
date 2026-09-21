@@ -111,11 +111,15 @@ async def handle_bookticker_message(payload: dict, received_at_us: int, venue: s
             # ms to us
             event_time_us = event_time_us * 1000
         updated_at = datetime.fromtimestamp(received_at_us / 1_000_000, tz=timezone.utc)
+        received_at = datetime.now(timezone.utc)
         session = get_session()
-        # upsert
-        q = session.get(LatestQuote, symbol)
+        # upsert — composite PK (venue,symbol) Phase6
+        q = session.get(LatestQuote, (venue, symbol))
         if q is None:
-            q = LatestQuote(symbol=symbol, venue=venue, price=mid, bid=bid, ask=ask, source=venue, updated_at=updated_at)
+            # also check legacy single-symbol entry migrated? try symbol-only filter for upgrade path
+            q = session.query(LatestQuote).filter(LatestQuote.symbol==symbol, LatestQuote.venue==venue).first()
+        if q is None:
+            q = LatestQuote(symbol=symbol, venue=venue, price=mid, bid=bid, ask=ask, source=venue, updated_at=updated_at, received_at=received_at, persisted_at=received_at)
             session.add(q)
         else:
             q.venue = venue
@@ -124,6 +128,8 @@ async def handle_bookticker_message(payload: dict, received_at_us: int, venue: s
             q.ask = ask
             q.source = venue
             q.updated_at = updated_at
+            q.received_at = received_at
+            q.persisted_at = datetime.now(timezone.utc)
         session.commit()
         session.close()
         # Provider health
@@ -158,14 +164,19 @@ async def handle_markprice_message(payload: dict, received_at_us: int, venue: st
         except Exception:
             return
         updated_at = datetime.fromtimestamp(received_at_us / 1_000_000, tz=timezone.utc)
+        received_at = datetime.now(timezone.utc)
         session = get_session()
-        q = session.get(LatestQuote, symbol)
+        q = session.get(LatestQuote, (venue, symbol))
         if q is None:
-            q = LatestQuote(symbol=symbol, venue=venue, price=mark_d, mark_price=mark_d, source=venue, updated_at=updated_at)
+            q = session.query(LatestQuote).filter(LatestQuote.symbol==symbol, LatestQuote.venue==venue).first()
+        if q is None:
+            q = LatestQuote(symbol=symbol, venue=venue, price=mark_d, mark_price=mark_d, source=venue, updated_at=updated_at, received_at=received_at, persisted_at=received_at)
             session.add(q)
         else:
             q.mark_price = mark_d
             q.updated_at = updated_at
+            q.received_at = received_at
+            q.persisted_at = datetime.now(timezone.utc)
         session.commit()
         session.close()
     except Exception as e:

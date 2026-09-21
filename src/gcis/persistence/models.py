@@ -31,13 +31,18 @@ class Candle(Base):
 
 class LatestQuote(Base):
     __tablename__ = "latest_quotes"
-    venue: Mapped[str] = mapped_column(String, default="binance_um")
+    # Phase6 multi-venue safe PK — (venue,symbol) prevents BTCUSDT/Binance overwriting BTCUSDT/Bybit
+    venue: Mapped[str] = mapped_column(String, primary_key=True, default="binance_um")
     symbol: Mapped[str] = mapped_column(String, primary_key=True)
     price: Mapped[Decimal] = mapped_column(Numeric(38,18))
     bid: Mapped[Decimal] = mapped_column(Numeric(38,18), nullable=True)
     ask: Mapped[Decimal] = mapped_column(Numeric(38,18), nullable=True)
     mark_price: Mapped[Decimal] = mapped_column(Numeric(38,18), nullable=True)  # FUT-05
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    # Phase7 triple timestamps: event_time (exchange), received_time (local receipt), persisted_time (DB)
+    # updated_at kept as event_time for backward compat; add explicit received/persisted
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)  # event_time
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)  # local receipt
+    persisted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)  # DB persist
     source: Mapped[str] = mapped_column(String, default="binance_um")
 
 # V3: contract registry replaces hard-coded symbols (INV-25)
