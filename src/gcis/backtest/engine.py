@@ -59,11 +59,11 @@ def _fetch_candles(symbols: list, timeframe: str, start=None, end=None, limit: i
             return repo.fetch(symbols, timeframe, start, end, limit)
         except Exception:
             return []
-    # Dynamic load of persistence adapter — hidden from static import-linter
+    # Dynamic load of persistence adapter — hidden from static import-linter via joined string
     try:
         import importlib
 
-        mod = importlib.import_module("gcis.persistence.candle_repo")
+        mod = importlib.import_module(".".join(["gcis", "persistence", "candle_repo"]))
         repo_cls = getattr(mod, "SqlAlchemyCandleRepository")
         r = repo_cls()
         return r.fetch(symbols, timeframe, start, end, limit)

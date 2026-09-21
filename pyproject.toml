@@ -45,6 +45,9 @@ dev = [
   "pip-audit==2.7.3",
   "import-linter==2.2",
 ]
+oracle = [
+  "pandas-ta-classic==0.4.47",
+]
 
 [project.scripts]
 gcis = "gcis.cli:main"

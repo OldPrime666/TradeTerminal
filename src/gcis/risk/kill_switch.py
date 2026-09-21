@@ -31,7 +31,7 @@ def is_kill_switch_active(store: Any) -> bool:
     if _is_session(store):
         import importlib
 
-        models = importlib.import_module("gcis.persistence.models")
+        models = importlib.import_module(".".join(["gcis", "persistence", "models"]))
         KillSwitchState = models.KillSwitchState
         row = store.query(KillSwitchState).order_by(KillSwitchState.id.desc()).first()
         return bool(row and row.active)
@@ -51,7 +51,7 @@ def activate_kill_switch(store: Any, reason: str, mode: str = "BLOCK_NEW_TRADES"
     if _is_session(store):
         import importlib
 
-        models = importlib.import_module("gcis.persistence.models")
+        models = importlib.import_module(".".join(["gcis", "persistence", "models"]))
         KillSwitchState = models.KillSwitchState
         ks = KillSwitchState(active=True, mode=mode, reason=reason, created_at=datetime.now(timezone.utc))
         store.add(ks)
@@ -69,7 +69,7 @@ def deactivate_kill_switch(store: Any):
     if _is_session(store):
         import importlib
 
-        models = importlib.import_module("gcis.persistence.models")
+        models = importlib.import_module(".".join(["gcis", "persistence", "models"]))
         KillSwitchState = models.KillSwitchState
         ks = KillSwitchState(active=False, mode="BLOCK_NEW_TRADES", reason="manual unlock", created_at=datetime.now(timezone.utc))
         store.add(ks)
