@@ -33,10 +33,15 @@ def test_supervisor_start_stop_single(monkeypatch, tmp_path):
     assert res["status"] in ("STARTED", "ALREADY_RUNNING")
     pid = res.get("pid")
     assert isinstance(pid, int)
-    # give process time to start and finish (stub runs 0.05*1 sec)
-    time.sleep(0.5)
+    # give process time to start and finish (wired transport does DB + heartbeat, ~0.3s)
+    time.sleep(1.0)
     # is_alive should be False after stub finishes (it exits after stop_after cycles)
     # But we still have tracking; after exit, is_alive false
+    # Poll briefly if still alive due to slow spawn
+    for _ in range(5):
+        if not sup.is_alive("transport"):
+            break
+        time.sleep(0.2)
     assert sup.is_alive("transport") is False
     # stop should be no-op or stopped
     stop_res = sup.stop_process("transport")
