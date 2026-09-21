@@ -342,3 +342,66 @@ _default_supervisor = Supervisor()
 
 def get_supervisor() -> Supervisor:
     return _default_supervisor
+
+# === Continuous supervisor loop — Phase 1 (genuine, not just start_all) ===
+def _supervisor_loop(interval: float = 2.0):
+    """Continuous loop: monitor_tick every interval, handle crash detection/backoff/restart, reconcile state."""
+    sup = get_supervisor()
+    # Start all 4 on boot
+    log.info(f"supervisor loop starting {PROCESSES}")
+    sup.start_all()
+    try:
+        while True:
+            try:
+                actions = sup.monitor_tick()
+                # log only non-healthy
+                non_healthy = {k: v for k, v in actions.items() if v != "HEALTHY"}
+                if non_healthy:
+                    log.info(f"supervisor monitor {non_healthy}")
+                # also compute health snapshot for observability
+                try:
+                    from gcis.runtime.health import compute_health
+                    compute_health()
+                except Exception:
+                    pass
+            except Exception as e:
+                log.warning(f"supervisor loop error {e}")
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        log.info("supervisor loop interrupted — graceful shutdown")
+        sup.stop_all(timeout=5)
+        # Windows-compatible child cleanup already in stop_all
+
+if __name__ == "__main__":
+    # Windows Ctrl+C graceful, duplicate prevention via pidfile advisory
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--interval", type=float, default=2.0)
+    args = parser.parse_args()
+    # duplicate-process prevention advisory (pidfile)
+    pidfile = os.path.join(os.getcwd(), "var", "supervisor.pid")
+    try:
+        os.makedirs(os.path.dirname(pidfile), exist_ok=True)
+        if os.path.exists(pidfile):
+            try:
+                with open(pidfile) as f:
+                    old_pid = int(f.read().strip())
+                # check if old process alive (Windows: os.kill 0)
+                try:
+                    os.kill(old_pid, 0)
+                    log.error(f"supervisor pidfile {pidfile} points to live pid {old_pid} — refusing duplicate start")
+                    raise SystemExit(1)
+                except ProcessLookupError:
+                    pass
+            except SystemExit:
+                raise
+            except Exception:
+                pass
+        with open(pidfile, "w") as f:
+            f.write(str(os.getpid()))
+    except SystemExit:
+        raise
+    except Exception:
+        pass
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    _supervisor_loop(interval=args.interval)
