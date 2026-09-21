@@ -24,7 +24,10 @@ def compute_health() -> dict:
         last_candle = db.query(Candle).order_by(Candle.close_time.desc()).first()
         freshness = "UNKNOWN"
         if last_candle:
-            age = (datetime.now(timezone.utc) - last_candle.close_time).total_seconds()
+            ct = last_candle.close_time
+            if ct is not None and ct.tzinfo is None:
+                ct = ct.replace(tzinfo=timezone.utc)
+            age = (datetime.now(timezone.utc) - ct).total_seconds() if ct else 999999
             if age < 600:
                 freshness = "HEALTHY"
             elif age < 1800:

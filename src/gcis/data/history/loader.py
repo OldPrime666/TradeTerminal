@@ -116,6 +116,78 @@ def ingest_rows_to_parquet(
     start_us = int(df["open_time"].min().timestamp() * 1_000_000)
     end_us = int(df["open_time"].max().timestamp() * 1_000_000)
     _ensure_archive_segment(venue, symbol, timeframe, path, len(df), sha, start_us, end_us)
+    # §12 bridge: also populate canonical Candle rows for backtest/MarketView (idempotent)
+    try:
+        from gcis.persistence.models import Candle, EventOutbox
+        from decimal import Decimal, InvalidOperation
+        session = get_session()
+        # Prepare bulk upsert — check existing open_times to avoid dup
+        # Use get by unique key (venue,symbol,timeframe,open_time)
+        for _, row in df.iterrows():
+            # row open_time is datetime
+            open_dt = row["open_time"]
+            if isinstance(open_dt, str):
+                open_dt = datetime.fromisoformat(open_dt)
+            if open_dt.tzinfo is None:
+                open_dt = open_dt.replace(tzinfo=timezone.utc)
+            close_dt = row.get("close_time")
+            if isinstance(close_dt, str):
+                close_dt = datetime.fromisoformat(close_dt)
+            if close_dt is not None and close_dt.tzinfo is None:
+                close_dt = close_dt.replace(tzinfo=timezone.utc)
+            # Check exists
+            exists = session.query(Candle).filter(
+                Candle.venue == venue,
+                Candle.symbol == symbol,
+                Candle.timeframe == timeframe,
+                Candle.open_time == open_dt,
+            ).first()
+            if exists:
+                continue
+            def to_dec(v):
+                if v is None or (isinstance(v, float) and (v != v)):  # NaN
+                    return None
+                try:
+                    # Handle string "0" etc.
+                    s = str(v).strip()
+                    if s == "" or s.lower() == "nan":
+                        return None
+                    return Decimal(s)
+                except Exception:
+                    return None
+            c = Candle(
+                venue=venue,
+                symbol=symbol,
+                timeframe=timeframe,
+                open_time=open_dt,
+                close_time=close_dt,
+                open=to_dec(row.get("open")),
+                high=to_dec(row.get("high")),
+                low=to_dec(row.get("low")),
+                close=to_dec(row.get("close")),
+                volume=to_dec(row.get("volume")),
+                quote_volume=to_dec(row.get("quote_volume")),
+                trade_count=int(row.get("trade_count")) if row.get("trade_count") not in (None, "") else None,
+                taker_buy_volume=to_dec(row.get("taker_buy_volume")),
+                is_closed=True,
+                source=venue,
+            )
+            session.add(c)
+            # Outbox for downstream
+            try:
+                open_us = int(open_dt.timestamp() * 1_000_000)
+                out = EventOutbox(
+                    event_type="candle.closed",
+                    entity_id=f"{venue}:{symbol}:{timeframe}:{open_us}",
+                    payload={"venue": venue, "symbol": symbol, "timeframe": timeframe, "open_time": open_us, "close": str(c.close) if c.close else None},
+                )
+                session.add(out)
+            except Exception:
+                pass
+        session.commit()
+        session.close()
+    except Exception as e:
+        log.debug(f"candle bridge failed {venue}:{symbol} {timeframe}: {e}")
     return path, len(df), sha
 
 def load_from_bulk(
