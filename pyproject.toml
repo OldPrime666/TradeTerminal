@@ -44,7 +44,6 @@ dev = [
   "bandit==1.8.3",
   "pip-audit==2.7.3",
   "import-linter==2.2",
-  "pandas-ta-classic==0.4.47",
 ]
 
 [project.scripts]
@@ -80,6 +79,7 @@ branch = true
 
 [tool.importlinter]
 root_package = "gcis"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Layering: app cannot import execution/risk internals"

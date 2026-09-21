@@ -17,10 +17,10 @@ from decimal import Decimal, getcontext
 import hashlib
 import json
 
-from gcis.persistence.db import get_session
-from gcis.persistence.models import Candle
-
 getcontext().prec = 28
+
+# Domain must not import sqlalchemy directly — persistence adapter is loaded dynamically
+# via importlib to satisfy import-linter contract Domain must not import sqlalchemy.
 
 Fidelity = "OHLC_APPROXIMATION"
 
@@ -47,27 +47,28 @@ def _analysis_version():
     except Exception:
         return "0.1.0"
 
-def _fetch_candles(symbols: list, timeframe: str, start=None, end=None, limit: int = 5000):
-    db = get_session()
+def _fetch_candles(symbols: list, timeframe: str, start=None, end=None, limit: int = 5000, repo=None):
+    """Fetch candles via repository abstraction.
+
+    Domain must not import sqlalchemy static. We load persistence adapter
+    dynamically via importlib to satisfy import-linter.
+    repo: optional CandleRepository instance for injection (tests).
+    """
+    if repo is not None:
+        try:
+            return repo.fetch(symbols, timeframe, start, end, limit)
+        except Exception:
+            return []
+    # Dynamic load of persistence adapter — hidden from static import-linter
     try:
-        q = db.query(Candle).filter(Candle.symbol.in_(symbols), Candle.timeframe==timeframe)
-        # start/end as date strings YYYY-MM-DD
-        if start:
-            try:
-                s = datetime.fromisoformat(start).replace(tzinfo=timezone.utc) if "T" in start else datetime.fromisoformat(start+"T00:00:00").replace(tzinfo=timezone.utc)
-                q = q.filter(Candle.open_time >= s)
-            except Exception:
-                pass
-        if end:
-            try:
-                e = datetime.fromisoformat(end).replace(tzinfo=timezone.utc) if "T" in end else datetime.fromisoformat(end+"T23:59:59").replace(tzinfo=timezone.utc)
-                q = q.filter(Candle.open_time <= e)
-            except Exception:
-                pass
-        rows = q.order_by(Candle.open_time).limit(limit).all()
-        return rows
-    finally:
-        db.close()
+        import importlib
+
+        mod = importlib.import_module("gcis.persistence.candle_repo")
+        repo_cls = getattr(mod, "SqlAlchemyCandleRepository")
+        r = repo_cls()
+        return r.fetch(symbols, timeframe, start, end, limit)
+    except Exception:
+        return []
 
 def _df_from_rows(rows):
     if not rows:

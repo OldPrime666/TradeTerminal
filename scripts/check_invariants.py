@@ -161,16 +161,26 @@ def main():
     check_inv26()
     check_no_circumvention()
     try:
-        import subprocess
-        res = subprocess.run([sys.executable, "-m", "importlinter", "lint"], capture_output=True, text=True, timeout=20)
-        if res.returncode != 0:
-            print(res.stdout)
+        import subprocess, shutil, os
+        # §33: use lint-imports executable, not python -m importlinter
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(ROOT / "src") + os.pathsep + env.get("PYTHONPATH", "")
+        exe = shutil.which("lint-imports")
+        cmd = [exe] if exe else [sys.executable, "-m", "importlinter.cli", "lint"]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=20, env=env, cwd=str(ROOT))
+        print(res.stdout)
+        if res.stderr:
             print(res.stderr)
-            print("[WARN] import-linter failed or not satisfied")
+        if res.returncode != 0:
+            fail(f"import-linter contracts BROKEN (lint-imports exit {res.returncode})")
         else:
-            ok("import-linter contracts")
+            # also check for BROKEN string
+            if "BROKEN" in res.stdout:
+                fail("import-linter contracts BROKEN")
+            else:
+                ok("import-linter contracts")
     except Exception as e:
-        print(f"[WARN] import-linter not run: {e}")
+        fail(f"import-linter not run: {e}")
     sys.exit(1 if FAIL else 0)
 
 if __name__ == "__main__":
