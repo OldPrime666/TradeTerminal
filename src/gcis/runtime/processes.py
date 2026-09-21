@@ -9,6 +9,8 @@ Each heartbeats ≤5s and is supervised.
 import time
 import os
 import asyncio
+import uuid
+from decimal import Decimal
 from datetime import datetime, timezone
 
 from gcis.runtime.health import update_worker_heartbeat
@@ -75,7 +77,7 @@ def _analyzer_tick():
     processed = 0
     signals_created = 0
     try:
-        from gcis.core.config import get_config
+        from gcis.core.config import get_config, get_version_info
         from gcis.persistence.db import get_session
         from gcis.persistence.models import ContractRegistry, Signal
         from gcis.persistence.candle_repo import SqlAlchemyCandleRepository
@@ -85,6 +87,7 @@ def _analyzer_tick():
         import pandas as pd
 
         cfg = get_config()
+        ver = get_version_info()
         venue = cfg.get("universe", {}).get("venue_chain", ["binance_um"])[0]
         if venue == "auto":
             venue = "binance_um"
@@ -136,30 +139,74 @@ def _analyzer_tick():
                 if mv_reasons or px_reasons:
                     processed += 1
                     continue
-                # Persist Signal if not duplicate (idempotent by as_of+symbol)
+                # Persist Signal if not duplicate (idempotent by symbol+as_of)
                 try:
                     sess = get_session()
-                    # dedup: check existing signal for same symbol+as_of
-                    exists = sess.query(Signal).filter(Signal.symbol==symbol, Signal.as_of==as_of).first()
-                    if not exists:
-                        sig = Signal(
-                            symbol=symbol,
-                            timeframe="15m",
-                            direction=res.direction,
-                            entry_zone=str(res.entry_zone) if getattr(res, "entry_zone", None) else None,
-                            invalidation=str(res.invalidation) if getattr(res, "invalidation", None) else None,
-                            targets=str(res.targets) if getattr(res, "targets", None) else None,
-                            setup_score=getattr(res, "setup_score", None),
-                            as_of=as_of,
-                            created_at=now,
-                            status="QUALIFIED",
-                        )
-                        sess.add(sig)
-                        sess.commit()
-                        signals_created += 1
+                    # dedup: check existing signal for same symbol+created_at near as_of (5m window)
+                    # use exact as_of via created_at
+                    exists = sess.query(Signal).filter(Signal.symbol==symbol, Signal.created_at==as_of).first()
+                    if exists:
+                        sess.close()
+                        processed += 1
+                        continue
+                    # Build signal fields correctly per model
+                    # entry/stop/targets from res — handle various shapes
+                    entry = None
+                    stop = None
+                    t1 = None
+                    t2 = None
+                    try:
+                        ez = getattr(res, "entry_zone", None)
+                        if ez and isinstance(ez, (list, tuple)) and len(ez)==2:
+                            entry = Decimal(str((float(ez[0])+float(ez[1]))/2))
+                        elif ez:
+                            entry = Decimal(str(ez))
+                    except Exception:
+                        pass
+                    try:
+                        inv = getattr(res, "invalidation", None)
+                        if inv:
+                            stop = Decimal(str(inv))
+                    except Exception:
+                        pass
+                    try:
+                        tgts = getattr(res, "targets", None)
+                        if tgts and isinstance(tgts, (list, tuple)):
+                            if len(tgts) >= 1:
+                                t1 = Decimal(str(tgts[0]))
+                            if len(tgts) >= 2:
+                                t2 = Decimal(str(tgts[1]))
+                    except Exception:
+                        pass
+                    sig = Signal(
+                        signal_id=str(uuid.uuid4()),
+                        venue=venue,
+                        symbol=symbol,
+                        direction=getattr(res, "direction", "LONG"),
+                        primary_timeframe="15m",
+                        created_at=as_of,
+                        expires_at=None,
+                        state="QUALIFIED",
+                        setup_score=getattr(res, "setup_score", None),
+                        strategy=getattr(res, "strategy", "ICT-A"),
+                        entry=entry,
+                        stop=stop,
+                        target_1=t1,
+                        target_2=t2,
+                        regime=getattr(res, "regime", None),
+                        session=getattr(res, "session", None),
+                        analysis_version=ver.get("analysis_version"),
+                        config_version=ver.get("config_hash"),
+                    )
+                    sess.add(sig)
+                    sess.commit()
+                    signals_created += 1
                     sess.close()
                 except Exception:
-                    pass
+                    try:
+                        sess.close()
+                    except Exception:
+                        pass
                 processed += 1
             except Exception:
                 processed += 1
@@ -195,8 +242,8 @@ def _risk_tick():
             kill_active = False
         # Daily risk
         try:
-            dr = sess.query(DailyRiskState).order_by(DailyRiskState.date.desc()).first()
-            risk_lock = dr.risk_lock if dr else "OK"
+            dr = sess.query(DailyRiskState).order_by(DailyRiskState.risk_day.desc()).first()
+            risk_lock = dr.risk_lock if dr else "UNKNOWN"
         except Exception:
             risk_lock = "UNKNOWN"
         sess.close()
@@ -219,10 +266,13 @@ def run_risk(stop_after: int = 1):
 def _paper_tick():
     """Paper tick: signal → paper intent → position → outcome via LatestQuote."""
     created = 0
+    blocked = None
     try:
         from gcis.persistence.db import get_session
         from gcis.persistence.models import Signal, Position, LatestQuote
+        from gcis.core.config import get_config
         sess = get_session()
+        cfg = get_config()
         # Check kill switch via store
         try:
             from gcis.persistence.kill_switch_repo import SqlAlchemyKillSwitchStore
@@ -233,54 +283,92 @@ def _paper_tick():
         except Exception:
             pass
         # Find qualified signals without position yet (simple)
-        signals = sess.query(Signal).filter(Signal.status=="QUALIFIED").limit(5).all()
+        signals = sess.query(Signal).filter(Signal.state=="QUALIFIED").limit(5).all()
         for sig in signals:
-            # Check if position already exists for this signal (by symbol+as_of)
-            existing = sess.query(Position).filter(Position.symbol==sig.symbol, Position.entry_time==sig.as_of).first()
+            # Check if position already exists for this signal (by symbol+created_at)
+            existing = sess.query(Position).filter(Position.symbol==sig.symbol, Position.created_at==sig.created_at).first()
             if existing:
                 continue
-            # Create paper position (paper execution)
-            # Use LatestQuote for entry price if available, else use signal entry_zone mid
+            # Use LatestQuote for entry price — truthful validation per Phase 3
             price = None
+            q = None
             try:
                 q = sess.get(LatestQuote, sig.symbol)
-                if q and q.price:
+                if q and q.price is not None:
                     price = float(q.price)
             except Exception:
-                pass
-            if price is None:
-                # fallback to entry_zone mid
-                try:
-                    import ast
-                    ez = ast.literal_eval(sig.entry_zone) if sig.entry_zone else None
-                    if ez and len(ez)==2:
-                        price = (float(ez[0])+float(ez[1]))/2
-                    else:
-                        price = 42000.0
-                except Exception:
-                    price = 42000.0
-            pos = Position(
-                symbol=sig.symbol,
-                side=sig.direction,
-                size=0.01,
-                entry_price=price,
-                entry_time=sig.as_of,
-                status="OPEN",
-            )
-            sess.add(pos)
-            sig.status = "PAPER_ENTERED"
-            created += 1
+                q = None
+                price = None
+            if price is None or q is None:
+                # Phase 3: no fallback price — missing quote → NO_DATA, do not fabricate
+                blocked = "NO_DATA"
+                continue
+            # Phase 3: quote validation — freshness, price>0, source/venue, symbol match
+            try:
+                stale_after = cfg.get("freshness", {}).get("quote_stale_after_s", 5)
+                disc_after = cfg.get("freshness", {}).get("quote_disconnected_after_s", 30)
+                if q.updated_at is None:
+                    blocked = "NO_DATA"
+                    continue
+                q_ts = q.updated_at
+                if q_ts.tzinfo is None:
+                    q_ts = q_ts.replace(tzinfo=timezone.utc)
+                age_s = (datetime.now(timezone.utc) - q_ts).total_seconds()
+                if age_s > disc_after:
+                    blocked = "UNAVAILABLE"
+                    continue
+                if age_s > stale_after:
+                    blocked = "STALE_DATA"
+                    continue
+                if price is None or float(price) <= 0:
+                    blocked = "UNAVAILABLE"
+                    continue
+                if not getattr(q, "source", None) or not getattr(q, "venue", None):
+                    blocked = "UNAVAILABLE"
+                    continue
+                if getattr(q, "symbol", None) != sig.symbol:
+                    blocked = "UNAVAILABLE"
+                    continue
+            except Exception:
+                blocked = "UNAVAILABLE"
+                continue
+            # Create paper position — correct fields per model
+            try:
+                pos = Position(
+                    position_id=str(uuid.uuid4()),
+                    venue=getattr(sig, "venue", "binance_um"),
+                    symbol=sig.symbol,
+                    direction=sig.direction,
+                    quantity=Decimal("0.01"),
+                    entry_price=Decimal(str(price)),
+                    state="OPEN",
+                    leverage=3,
+                    stop_loss=sig.stop,
+                    take_profit_1=sig.target_1,
+                    take_profit_2=sig.target_2,
+                    created_at=datetime.now(timezone.utc),
+                )
+                sess.add(pos)
+                sig.state = "PAPER_ENTERED"
+                created += 1
+            except Exception as e:
+                # if position creation fails, don't mark signal
+                continue
         sess.commit()
         sess.close()
     except Exception as e:
-        pass
-    return {"created": created}
+        try:
+            sess.close()
+        except Exception:
+            pass
+        return {"created": created, "blocked": blocked, "error": str(e)[:200]}
+    return {"created": created, "blocked": blocked}
 
 def run_paper(stop_after: int = 1):
     pid = os.getpid()
     for _ in range(stop_after):
         tick = _paper_tick()
-        # Paper health reflects real execution loop: created count as queue_depth, latency 0
+        # Paper health reflects real execution loop: created count as queue_depth
         update_worker_heartbeat("paper", pid=pid, state="HEALTHY", queue_depth=tick.get("created", 0))
         time.sleep(0.05)
     return f"paper done created={tick.get('created',0) if 'tick' in locals() else 0}"
