@@ -10,11 +10,15 @@ Jitter note: backoff uses random.uniform for jitter per OPS-01; allowed per INV-
 """
 import random
 import time
+import logging
+import multiprocessing
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 
 from gcis.persistence.db import get_session
 from gcis.persistence.models import WorkerState, SystemHealth, Command, CommandResult, EventOutbox
+
+log = logging.getLogger(__name__)
 
 # 4 processes per P09 spec
 PROCESSES = ["transport", "analyzer", "risk", "paper"]
@@ -53,12 +57,15 @@ def should_heartbeat_be_fresh(last_heartbeat: datetime, now: Optional[datetime] 
 
 class Supervisor:
     """
-    In-memory supervisor state + DB persistence.
+    In-memory supervisor state + DB persistence + real process orchestration (§4).
     For tests, uses get_session mocked to in-memory DB.
+    Real orchestration uses multiprocessing spawn, PID tracking, graceful shutdown, no orphans.
     """
     def __init__(self):
         self.failures: Dict[str, List[datetime]] = {p: [] for p in PROCESSES}
         self.attempts: Dict[str, int] = {p: 0 for p in PROCESSES}
+        self._procs: Dict[str, multiprocessing.Process] = {}
+        self._ctx = multiprocessing.get_context("spawn")
 
     def record_failure(self, process: str, error: str = "") -> dict:
         """Record failure, return backoff and whether crash-loop FAILED."""
@@ -177,6 +184,149 @@ class Supervisor:
             return {"command_id": cid, "status": "SUCCESS", "result": result_payload, "idempotent": False}
         finally:
             db.close()
+
+    # === Real process orchestration (§4) ===
+    def _get_target(self, process: str):
+        """Resolve target callable for process role — lazy import to avoid circular."""
+        try:
+            from gcis.runtime.processes import PROCESSES as PROC_MAP
+            return PROC_MAP.get(process)
+        except Exception:
+            return None
+
+    def is_alive(self, process: str) -> bool:
+        p = self._procs.get(process)
+        return bool(p and p.is_alive())
+
+    def start_process(self, process: str, **kwargs) -> dict:
+        """Start single process role with crash-loop check, PID tracking, backoff. Returns status."""
+        if process not in PROCESSES:
+            return {"ok": False, "reason": "unknown_process"}
+        # Already alive → no-op, prevent duplicate ownership (§4 no duplicate)
+        if self.is_alive(process):
+            return {"ok": True, "status": "ALREADY_RUNNING", "pid": self._procs[process].pid}
+        # Crash-loop breaker
+        now = datetime.now(timezone.utc)
+        if is_crash_loop(self.failures.get(process, []), now):
+            log.warning(f"supervisor crash-loop breaker {process} >5/10m → FAILED, not restarting")
+            try:
+                from gcis.runtime.health import update_worker_heartbeat
+                import os
+                update_worker_heartbeat(process, pid=os.getpid(), state="FAILED", error="crash-loop breaker")
+            except Exception:
+                pass
+            return {"ok": False, "status": "FAILED", "reason": "crash_loop"}
+        target = self._get_target(process)
+        if not target:
+            return {"ok": False, "reason": "no_target"}
+        # Determine attempt for backoff logging (not sleeping here — caller can sleep)
+        attempt = self.attempts.get(process, 0)
+        backoff = next_backoff(attempt, jitter=True)
+        try:
+            # Windows-compatible spawn — pass stop_after via kwargs if target accepts
+            # For live, we run with stop_after=None (forever); for tests, caller passes stop_after=1
+            # Default to None for supervisor-managed live processes
+            run_kwargs = kwargs if kwargs else {}
+            p = self._ctx.Process(target=target, kwargs=run_kwargs, daemon=False)
+            p.start()
+            self._procs[process] = p
+            log.info(f"supervisor started {process} pid={p.pid} attempt={attempt} backoff={backoff:.1f}s")
+            # PID/state tracking
+            try:
+                from gcis.runtime.health import update_worker_heartbeat
+                update_worker_heartbeat(process, pid=p.pid, state="HEALTHY")
+            except Exception:
+                pass
+            return {"ok": True, "status": "STARTED", "pid": p.pid, "backoff_s": backoff, "attempt": attempt}
+        except Exception as e:
+            log.warning(f"supervisor start failed {process}: {e}")
+            self.record_failure(process, error=str(e)[:200])
+            return {"ok": False, "status": "ERROR", "error": str(e)[:200]}
+
+    def stop_process(self, process: str, timeout: float = 5.0) -> dict:
+        """Graceful stop with SIGTERM → SIGKILL fallback, no orphans."""
+        p = self._procs.get(process)
+        if not p:
+            return {"ok": True, "status": "NOT_RUNNING"}
+        try:
+            if p.is_alive():
+                p.terminate()
+                p.join(timeout=timeout)
+                if p.is_alive():
+                    log.warning(f"supervisor {process} pid={p.pid} did not exit in {timeout}s → kill")
+                    p.kill()
+                    p.join(timeout=2)
+                log.info(f"supervisor stopped {process} pid={p.pid} exitcode={p.exitcode}")
+            # Clean up tracking
+            self._procs.pop(process, None)
+            try:
+                from gcis.runtime.health import update_worker_heartbeat
+                import os
+                update_worker_heartbeat(process, pid=os.getpid(), state="DISCONNECTED")
+            except Exception:
+                pass
+            return {"ok": True, "status": "STOPPED", "pid": p.pid if hasattr(p, 'pid') else None}
+        except Exception as e:
+            return {"ok": False, "status": "ERROR", "error": str(e)[:200]}
+
+    def restart_process(self, process: str, **kwargs) -> dict:
+        """Restart: stop + record_failure/backoff + start. Respects crash-loop breaker."""
+        # Record as failure for backoff accounting unless already crash-loop
+        now = datetime.now(timezone.utc)
+        if not is_crash_loop(self.failures.get(process, []), now):
+            self.record_failure(process, error="restart_requested")
+            # Sleep backoff? Caller should sleep; we just respect attempt count
+        stop_res = self.stop_process(process)
+        # If crash-loop now, don't restart
+        if is_crash_loop(self.failures.get(process, []), datetime.now(timezone.utc)):
+            return {"ok": False, "status": "FAILED", "reason": "crash_loop_after_stop", "stop": stop_res}
+        return self.start_process(process, **kwargs)
+
+    def start_all(self, **kwargs) -> Dict[str, dict]:
+        """Start all 4 processes — deterministic identity, no duplicate."""
+        results = {}
+        for proc in PROCESSES:
+            results[proc] = self.start_process(proc, **kwargs)
+        return results
+
+    def stop_all(self, timeout: float = 5.0) -> Dict[str, dict]:
+        """Graceful shutdown all — no runaway, no orphans, Windows-compatible."""
+        results = {}
+        for proc in list(self._procs.keys()):
+            results[proc] = self.stop_process(proc, timeout=timeout)
+        # Also ensure any tracked proc is cleaned
+        for proc in PROCESSES:
+            if proc not in results:
+                results[proc] = self.stop_process(proc, timeout=timeout) if proc in self._procs else {"ok": True, "status": "NOT_RUNNING"}
+        return results
+
+    def monitor_tick(self) -> Dict[str, str]:
+        """
+        Heartbeat monitoring + crash detection (§4): if process dead but heartbeat says HEALTHY, detect and restart.
+        Returns action per process.
+        """
+        actions = {}
+        hb_status = self.check_heartbeats()
+        for proc in PROCESSES:
+            alive = self.is_alive(proc)
+            hb = hb_status.get(proc, "MISSING")
+            if not alive and hb in ("HEALTHY", "DEGRADED"):
+                # Process dead but DB says healthy/degraded → stale, needs restart
+                log.warning(f"supervisor monitor {proc} dead but heartbeat {hb} → restart")
+                self.record_failure(proc, error="process_dead_heartbeat_stale")
+                if not is_crash_loop(self.failures.get(proc, [])):
+                    self.start_process(proc)
+                    actions[proc] = "RESTARTED_DEAD"
+                else:
+                    actions[proc] = "FAILED_CRASH_LOOP"
+            elif alive and hb in ("DISCONNECTED", "MISSING"):
+                # Alive but heartbeat missing stale → mark degraded, let heartbeat_tick recover
+                actions[proc] = "ALIVE_BUT_HEARTBEAT_MISSING"
+            elif not alive and hb in ("DISCONNECTED", "MISSING", "FAILED"):
+                actions[proc] = "NOT_RUNNING"
+            else:
+                actions[proc] = "HEALTHY"
+        return actions
 
     def get_backoff_schedule(self) -> List[int]:
         return BACKOFF_SCHEDULE.copy()
