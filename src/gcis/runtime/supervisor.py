@@ -65,6 +65,9 @@ class Supervisor:
         self.failures: Dict[str, List[datetime]] = {p: [] for p in PROCESSES}
         self.attempts: Dict[str, int] = {p: 0 for p in PROCESSES}
         self._procs: Dict[str, multiprocessing.Process] = {}
+        self._last_kwargs: Dict[str, Dict] = {}  # preserve production vs test mode for restart
+        self._started_at: Dict[str, datetime] = {}
+        self._first_success_at: Dict[str, datetime] = {}
         import os as _os
         # Windows-compatible spawn, but fork on POSIX for test monkeypatch pickle compatibility
         ctx_name = "spawn" if _os.name == "nt" else "fork"
@@ -233,17 +236,25 @@ class Supervisor:
             # For live, we run with stop_after=None (forever); for tests, caller passes stop_after=1
             # Default to empty (target default 1) for tests; production _supervisor_loop passes stop_after=None explicitly
             run_kwargs = dict(kwargs) if kwargs else {}
+            # Track last kwargs for restart preservation (ITEM 1) — before spawn
+            # Normalize: if stop_after not provided, default bounded 1 for tests; explicit None = continuous
+            if "stop_after" not in run_kwargs:
+                # keep empty for target default (1) but record as bounded for mode tracking
+                pass
+            self._last_kwargs[process] = dict(run_kwargs)
+            self._started_at[process] = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
             p = self._ctx.Process(target=target, kwargs=run_kwargs, daemon=False)
             p.start()
             self._procs[process] = p
-            log.info(f"supervisor started {process} pid={p.pid} attempt={attempt} backoff={backoff:.1f}s")
-            # PID/state tracking
+            log.info(f"supervisor started {process} pid={p.pid} attempt={attempt} backoff={backoff:.1f}s kwargs={run_kwargs}")
+            # PID/state tracking — ITEM 2: not HEALTHY on spawn, mark STARTING/BOOTING
             try:
                 from gcis.runtime.health import update_worker_heartbeat
-                update_worker_heartbeat(process, pid=p.pid, state="HEALTHY")
+                update_worker_heartbeat(process, pid=p.pid, state="STARTING")
             except Exception:
                 pass
-            return {"ok": True, "status": "STARTED", "pid": p.pid, "backoff_s": backoff, "attempt": attempt}
+            is_cont = ("stop_after" in run_kwargs and run_kwargs["stop_after"] is None)
+            return {"ok": True, "status": "STARTED", "pid": p.pid, "backoff_s": backoff, "attempt": attempt, "mode": "continuous" if is_cont else "bounded"}
         except Exception as e:
             log.warning(f"supervisor start failed {process}: {e}")
             self.record_failure(process, error=str(e)[:200])
@@ -276,16 +287,21 @@ class Supervisor:
             return {"ok": False, "status": "ERROR", "error": str(e)[:200]}
 
     def restart_process(self, process: str, **kwargs) -> dict:
-        """Restart: stop + record_failure/backoff + start. Respects crash-loop breaker."""
+        """Restart: stop + record_failure/backoff + start. Preserves continuous mode (ITEM 1)."""
         # Record as failure for backoff accounting unless already crash-loop
         now = datetime.now(timezone.utc)
         if not is_crash_loop(self.failures.get(process, []), now):
             self.record_failure(process, error="restart_requested")
-            # Sleep backoff? Caller should sleep; we just respect attempt count
         stop_res = self.stop_process(process)
         # If crash-loop now, don't restart
         if is_crash_loop(self.failures.get(process, []), datetime.now(timezone.utc)):
             return {"ok": False, "status": "FAILED", "reason": "crash_loop_after_stop", "stop": stop_res}
+        # Preserve last mode if caller didn't specify (ITEM 1: production stays continuous)
+        if not kwargs and process in self._last_kwargs:
+            kwargs = dict(self._last_kwargs[process])
+        elif not kwargs:
+            # default bounded for tests; production will have _last_kwargs with stop_after=None preserved
+            kwargs = {"stop_after": 1}
         return self.start_process(process, **kwargs)
 
     def start_all(self, **kwargs) -> Dict[str, dict]:
@@ -317,11 +333,13 @@ class Supervisor:
             alive = self.is_alive(proc)
             hb = hb_status.get(proc, "MISSING")
             if not alive and hb in ("HEALTHY", "DEGRADED"):
-                # Process dead but DB says healthy/degraded → stale, needs restart
+                # Process dead but DB says healthy/degraded → stale, needs restart (ITEM 1: preserve continuous)
                 log.warning(f"supervisor monitor {proc} dead but heartbeat {hb} → restart")
                 self.record_failure(proc, error="process_dead_heartbeat_stale")
                 if not is_crash_loop(self.failures.get(proc, [])):
-                    self.start_process(proc)
+                    # Preserve last mode (continuous vs bounded) for restart; default bounded 1 for isolated tests
+                    rk = self._last_kwargs.get(proc, {"stop_after": 1})
+                    self.start_process(proc, **rk)
                     actions[proc] = "RESTARTED_DEAD"
                 else:
                     actions[proc] = "FAILED_CRASH_LOOP"

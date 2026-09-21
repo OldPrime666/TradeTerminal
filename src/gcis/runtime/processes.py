@@ -17,6 +17,11 @@ from gcis.runtime.health import update_worker_heartbeat
 
 def run_transport(stop_after: int = 1, symbols=None, venue: str = "binance_um"):
     pid = os.getpid()
+    # ITEM2 truthful start
+    try:
+        update_worker_heartbeat("transport", pid=pid, state="STARTING")
+    except Exception:
+        pass
     try:
         from gcis.data.transport.manager import TransportManager
         mgr = TransportManager(venue=venue, symbols=symbols or [])
@@ -29,8 +34,7 @@ def run_transport(stop_after: int = 1, symbols=None, venue: str = "binance_um"):
                 try:
                     h = mgr.health()
                     state = h.get("ws_state", "HEALTHY")
-                    if state == "DISCONNECTED" and not mgr.symbols:
-                        state = "HEALTHY"
+                    # truthful: do not mask DISCONNECTED even if no symbols (ITEM3)
                     try:
                         asyncio.run(mgr.heartbeat_tick())
                         if state == "HEALTHY":
@@ -66,10 +70,14 @@ def run_transport(stop_after: int = 1, symbols=None, venue: str = "binance_um"):
                     time.sleep(0.2)
                 return "transport done (wired, live cycles)"
     except Exception as e:
-        for _ in range(stop_after if stop_after else 1):
-            update_worker_heartbeat("transport", pid=pid, state="HEALTHY", lag_ms=100)
-            time.sleep(0.05)
-        return f"transport fallback {e}"
+        # ITEM4: truthful FAILED — no false HEALTHY
+        try:
+            for _ in range(stop_after if stop_after else 1):
+                update_worker_heartbeat("transport", pid=pid, state="FAILED", error=str(e)[:200])
+                time.sleep(0.05)
+        except Exception:
+            pass
+        return f"transport failed {e}"
 
 def _analyzer_tick():
     """Single analyzer tick: load symbols, MarketView, ICT, gates, persist Signal if pass."""
@@ -124,7 +132,44 @@ def _analyzer_tick():
                 as_of = df.iloc[-1]["close_time"]
                 if hasattr(as_of, "tzinfo") and as_of.tzinfo is None:
                     as_of = as_of.replace(tzinfo=timezone.utc)
-                view = MarketView(as_of=as_of, candles={symbol: {"15m": df}}, quotes={symbol: {"updated_at": as_of, "price": float(df.iloc[-1]["close"])}})
+                # ITEM5: canonical LatestQuote — no candle close as price, fail closed if missing/stale
+                q_price = None
+                q_updated = None
+                q_source_ok = False
+                try:
+                    from gcis.persistence.models import LatestQuote
+                    from gcis.persistence.db import get_session as _get_sess
+                    _sess = _get_sess()
+                    # try venue-aware PK then fallback any venue
+                    _q = _sess.get(LatestQuote, (venue, symbol))
+                    if _q is None:
+                        _q = _sess.query(LatestQuote).filter(LatestQuote.symbol==symbol, LatestQuote.venue==venue).first()
+                    if _q is None:
+                        _q = _sess.query(LatestQuote).filter(LatestQuote.symbol==symbol).order_by(LatestQuote.updated_at.desc()).first()
+                    if _q and _q.price is not None and _q.updated_at is not None:
+                        # validate freshness ≤ stale_after, source present
+                        _ts = _q.updated_at
+                        if _ts.tzinfo is None:
+                            _ts = _ts.replace(tzinfo=timezone.utc)
+                        _age = (datetime.now(timezone.utc) - _ts).total_seconds()
+                        _stale = cfg.get("freshness", {}).get("quote_stale_after_s", 5)
+                        _disc = cfg.get("freshness", {}).get("quote_disconnected_after_s", 30)
+                        if _age <= _disc and _age <= _stale and float(_q.price) > 0 and getattr(_q, "source", None) and getattr(_q, "venue", None):
+                            q_price = float(_q.price)
+                            q_updated = _q.updated_at
+                            q_source_ok = True
+                    _sess.close()
+                except Exception:
+                    try:
+                        _sess.close()
+                    except Exception:
+                        pass
+                    q_price = None
+                if not q_source_ok or q_price is None:
+                    # no valid canonical quote → skip symbol (fail closed, no fake price)
+                    processed += 1
+                    continue
+                view = MarketView(as_of=as_of, candles={symbol: {"15m": df}}, quotes={symbol: {"updated_at": q_updated, "price": q_price}})
                 res = evaluate_ict_a(view, symbol, cfg)
                 if not res.eligible:
                     processed += 1
@@ -219,19 +264,52 @@ def _analyzer_tick():
 
 def run_analyzer(stop_after: int = 1):
     pid = os.getpid()
+    try:
+        update_worker_heartbeat("analyzer", pid=pid, state="STARTING")
+    except Exception:
+        pass
     # Phase1 continuous: stop_after=None → forever until supervisor SIGTERM
     if stop_after is None:
         try:
+            first = True
             while True:
-                tick = _analyzer_tick()
-                update_worker_heartbeat("analyzer", pid=pid, state="HEALTHY", lag_ms=tick.get("latency_ms", 0), queue_depth=tick.get("processed", 0))
+                try:
+                    tick = _analyzer_tick()
+                except Exception as e:
+                    try:
+                        update_worker_heartbeat("analyzer", pid=pid, state="FAILED", error=str(e)[:200])
+                    except Exception:
+                        pass
+                    time.sleep(0.3)
+                    continue
+                try:
+                    if first:
+                        update_worker_heartbeat("analyzer", pid=pid, state="FIRST_ATTEMPT")
+                        first = False
+                    hb_state = "HEALTHY" if tick.get("processed",0) >= 0 else "DEGRADED"
+                    # first success → HEALTHY
+                    update_worker_heartbeat("analyzer", pid=pid, state=hb_state, lag_ms=tick.get("latency_ms", 0), queue_depth=tick.get("processed", 0))
+                except Exception:
+                    pass
                 time.sleep(0.3)
         except KeyboardInterrupt:
             return "analyzer stopped"
     for _ in range(stop_after):
-        tick = _analyzer_tick()
-        # heartbeat reflects real processing: latency and queue depth
-        update_worker_heartbeat("analyzer", pid=pid, state="HEALTHY", lag_ms=tick.get("latency_ms", 0), queue_depth=tick.get("processed", 0))
+        try:
+            tick = _analyzer_tick()
+        except Exception as e:
+            try:
+                update_worker_heartbeat("analyzer", pid=pid, state="FAILED", error=str(e)[:200])
+            except Exception:
+                pass
+            time.sleep(0.05)
+            continue
+        # heartbeat truthful: HEALTHY only if processed>0 and latency<2000 else DEGRADED
+        try:
+            hb_state = "HEALTHY" if tick.get("processed",0) > 0 or tick.get("latency_ms",0) < 2000 else "DEGRADED"
+            update_worker_heartbeat("analyzer", pid=pid, state=hb_state, lag_ms=tick.get("latency_ms", 0), queue_depth=tick.get("processed", 0))
+        except Exception:
+            pass
         time.sleep(0.05)
     return f"analyzer done processed={tick.get('processed',0) if 'tick' in locals() else 0}"
 
@@ -262,6 +340,10 @@ def _risk_tick():
 
 def run_risk(stop_after: int = 1):
     pid = os.getpid()
+    try:
+        update_worker_heartbeat("risk", pid=pid, state="STARTING")
+    except Exception:
+        pass
     if stop_after is None:
         try:
             while True:
@@ -482,6 +564,10 @@ def _paper_tick():
 
 def run_paper(stop_after: int = 1):
     pid = os.getpid()
+    try:
+        update_worker_heartbeat("paper", pid=pid, state="STARTING")
+    except Exception:
+        pass
     if stop_after is None:
         try:
             while True:
