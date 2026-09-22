@@ -110,7 +110,11 @@ async def handle_bookticker_message(payload: dict, received_at_us: int, venue: s
         if isinstance(event_time_us, int) and event_time_us > 1_000_000_000_000:
             # ms to us
             event_time_us = event_time_us * 1000
-        updated_at = datetime.fromtimestamp(received_at_us / 1_000_000, tz=timezone.utc)
+        # ITEM6: distinct event vs received — event from payload.E, received = now()
+        _event_us = payload.get("E") or payload.get("u") or received_at_us
+        if isinstance(_event_us, int) and _event_us < 1_000_000_000_000: # ms -> us
+            _event_us = _event_us * 1000
+        updated_at = datetime.fromtimestamp(_event_us / 1_000_000, tz=timezone.utc)
         received_at = datetime.now(timezone.utc)
         session = get_session()
         # upsert — composite PK (venue,symbol) Phase6
@@ -163,7 +167,11 @@ async def handle_markprice_message(payload: dict, received_at_us: int, venue: st
                 return
         except Exception:
             return
-        updated_at = datetime.fromtimestamp(received_at_us / 1_000_000, tz=timezone.utc)
+        # ITEM6: markPrice event distinct — use payload.E if present
+        _event_us2 = payload.get("E") or received_at_us
+        if isinstance(_event_us2, int) and _event_us2 < 1_000_000_000_000:
+            _event_us2 = _event_us2 * 1000
+        updated_at = datetime.fromtimestamp(_event_us2 / 1_000_000, tz=timezone.utc)
         received_at = datetime.now(timezone.utc)
         session = get_session()
         q = session.get(LatestQuote, (venue, symbol))
