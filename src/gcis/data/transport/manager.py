@@ -123,7 +123,7 @@ async def handle_bookticker_message(payload: dict, received_at_us: int, venue: s
             # also check legacy single-symbol entry migrated? try symbol-only filter for upgrade path
             q = session.query(LatestQuote).filter(LatestQuote.symbol==symbol, LatestQuote.venue==venue).first()
         if q is None:
-            q = LatestQuote(symbol=symbol, venue=venue, price=mid, bid=bid, ask=ask, source=venue, updated_at=updated_at, received_at=received_at, persisted_at=received_at)
+            q = LatestQuote(symbol=symbol, venue=venue, price=mid, bid=bid, ask=ask, source=venue, updated_at=updated_at, received_at=received_at, persisted_at=received_at, mark_price_updated_at=None)
             session.add(q)
         else:
             q.venue = venue
@@ -178,13 +178,12 @@ async def handle_markprice_message(payload: dict, received_at_us: int, venue: st
         if q is None:
             q = session.query(LatestQuote).filter(LatestQuote.symbol==symbol, LatestQuote.venue==venue).first()
         if q is None:
-            q = LatestQuote(symbol=symbol, venue=venue, price=mark_d, mark_price=mark_d, source=venue, updated_at=updated_at, received_at=received_at, persisted_at=received_at)
+            q = LatestQuote(symbol=symbol, venue=venue, price=mark_d, mark_price=mark_d, mark_price_updated_at=updated_at, source=venue, updated_at=updated_at, received_at=received_at, persisted_at=received_at)
             session.add(q)
         else:
             q.mark_price = mark_d
-            # ITEM7: do not overwrite price updated_at — track mark separately (fail-closed freshness)
-            # price freshness stays from bookTicker; mark freshness uses persisted_atdelta only
-            # keep q.updated_at unchanged for price; only update mark_price and its own timestamps via persisted_at
+            q.mark_price_updated_at = updated_at
+            # ITEM7 COMPLETE: price updated_at stays for bookTicker, mark has its own timestamp — never overwrite
             q.received_at = received_at
             q.persisted_at = datetime.now(timezone.utc)
         session.commit()

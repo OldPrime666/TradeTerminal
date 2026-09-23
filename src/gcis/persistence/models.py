@@ -38,11 +38,12 @@ class LatestQuote(Base):
     bid: Mapped[Decimal] = mapped_column(Numeric(38,18), nullable=True)
     ask: Mapped[Decimal] = mapped_column(Numeric(38,18), nullable=True)
     mark_price: Mapped[Decimal] = mapped_column(Numeric(38,18), nullable=True)  # FUT-05
+    mark_price_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)  # PHASE7: mark event_time distinct from price event_time
     # Phase7 triple timestamps: event_time (exchange), received_time (local receipt), persisted_time (DB)
     # updated_at kept as event_time for backward compat; add explicit received/persisted
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)  # event_time
-    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)  # local receipt
-    persisted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)  # DB persist
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)  # price event_time
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)  # local receipt (price)
+    persisted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)  # DB persist (price)
     source: Mapped[str] = mapped_column(String, default="binance_um")
 
 # V3: contract registry replaces hard-coded symbols (INV-25)

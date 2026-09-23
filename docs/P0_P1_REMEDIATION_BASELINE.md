@@ -1,15 +1,15 @@
 # P0/P1 REMEDIATION BASELINE — TTAgent / TradeTerminal
 
-**Date:** 2026-09-21 20:35 UTC — Branch `arena/01a0bfdc-tradeterminal` — Commit `61473e3` + Items1-5 partial 20:35  
+**Date:** 2026-09-22 08:50 UTC — Branch `arena/01a0bfdc-tradeterminal` — Commit `4cece26` + Phase7 COMPLETE (a7f3c9d1e2b4)  
 **Inspectors:** Senior production architect / Python / Trading infra / Market-data / DB / Quant / Reliability / QA  
-**Env:** Linux 6.1, Python 3.11.2, SQLite `var/gcis.db` `81a3a75374bd (head)`, `pypi` 200, venues `tcp_ok_but_tls_failed:SSLZeroReturnError` → UNVERIFIED_ENV
-**Update 20:35:** ITEM1 fixed (restart preserves continuous, 3 tests, monitor_tick bounded default for tests), ITEM2 fixed (STARTING on spawn, delayed HEALTHY), ITEM3/4 partial (transport fallback now FAILED, analyzer STARTING/FIRST_ATTEMPT, removed DISCONNECTED mask, 47→45 except), ITEM5 fixed (analyzer now uses canonical LatestQuote with freshness/source/venue validation, no candle close as price). Remaining 15/20 phases. Verify --quick PASSED 224 tests.
+**Env:** Linux 6.1, Python 3.11.2, SQLite `var/gcis.db` `a7f3c9d1e2b4 (head)`, `pypi` 200, venues `tcp_ok_but_tls_failed:SSLZeroReturnError` → UNVERIFIED_ENV
+**Update 08:50:** ITEM1 fixed (restart preserves continuous, 3 tests, monitor_tick bounded), ITEM2 fixed (STARTING), ITEM3/4 partial (FAILED truthful), ITEM5 fixed (LatestQuote canonical), ITEM6 fixed (event vs received distinct via payload.E, 2 patched), ITEM7 COMPLETE (mark_price_updated_at distinct column a7f3c9d1e2b4, price updated_at never overwritten by mark, verify PASSED, DB migrated). Remaining 13/20 phases. Verify --quick PASSED 224 tests, head a7f3c9d1e2b4.
 
 ## 1. Repository Structure
 - `src/gcis/**` 197 files, 599 deps, 3 import-linter contracts
 - `tests/unit` 224 tests, `pyproject.toml` dev deps ruff/mypy/bandit/pip-audit/import-linter 2.2
-- `alembic` 2 revisions (001 baseline 32 tables, 81a3 PK fix)
-- `src/gcis/runtime/supervisor.py` 408 lines, `processes.py` 486 lines, `data/transport/manager.py` 432 lines
+- `alembic` 3 revisions (001 baseline 32 tables, 81a3 PK + triple timestamps, a7f3c9d1e2b4 mark_price_updated_at — Phase7 complete)
+- `src/gcis/runtime/supervisor.py` 408→430 lines, `processes.py` 506→593 lines, `data/transport/manager.py` 432→453 lines (Phase7 separate mark timestamp)
 
 ## 2. Global Search Findings
 - `TODO/FIXME/stub/placeholder/NotImplementedError`: 0 in src (only docs)
