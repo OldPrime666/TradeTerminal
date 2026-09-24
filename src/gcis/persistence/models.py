@@ -221,6 +221,16 @@ class EventOutbox(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
 
+class UniverseSyncState(Base):
+    __tablename__ = "universe_sync_state"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    last_cursor: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)  # Phase9: persistent cursor
+    last_latency_ms: Mapped[int] = mapped_column(Integer, nullable=True)
+    last_venue: Mapped[str] = mapped_column(String, nullable=True)
+    run_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
 class ConsumerCursor(Base):
     __tablename__ = "consumer_cursors"
     consumer: Mapped[str] = mapped_column(String, primary_key=True)

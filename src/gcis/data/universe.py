@@ -383,3 +383,72 @@ def coverage_summary(session: Session) -> Dict[str, Any]:
         "venue": cov.venue,
         "created_at": cov.created_at.isoformat() if cov.created_at else None,
     }
+
+
+# === Phase9: persistent scheduler cursor/latency ===
+class UniverseScheduler:
+    """Persistent interval scheduler: cursor + latency persisted in DB, survives restart."""
+    def __init__(self, interval_s: int = 300, venue_chain=None):
+        from gcis.core.config import get_config
+        cfg = get_config()
+        self.interval_s = interval_s or cfg.get("universe", {}).get("sync_interval_s", 300)
+        self.venue_chain = venue_chain
+        self._running = False
+    def get_state(self, session=None):
+        from gcis.persistence.db import get_session
+        from gcis.persistence.models import UniverseSyncState
+        close=False
+        if session is None:
+            session=get_session(); close=True
+        st=session.get(UniverseSyncState, 1)
+        if st is None:
+            st=UniverseSyncState(id=1, run_count=0, error_count=0)
+            session.add(st); session.commit()
+        res={"last_cursor": st.last_cursor, "last_latency_ms": st.last_latency_ms, "last_venue": st.last_venue, "run_count": st.run_count, "error_count": st.error_count}
+        if close: session.close()
+        return res
+    def tick(self):
+        import time
+        from datetime import datetime, timezone
+        from gcis.persistence.db import get_session
+        from gcis.persistence.models import UniverseSyncState
+        t0=time.time()
+        sess=get_session()
+        try:
+            result=sync_registry(session=sess, venue_chain=self.venue_chain)
+            latency_ms=int((time.time()-t0)*1000)
+            st=sess.get(UniverseSyncState, 1)
+            if st is None:
+                st=UniverseSyncState(id=1); sess.add(st)
+            st.last_cursor=datetime.now(timezone.utc)
+            st.last_latency_ms=latency_ms
+            st.last_venue=result.get("venue_used")
+            st.run_count=(st.run_count or 0)+1
+            sess.commit()
+            return {"ok": True, "latency_ms": latency_ms, "result": result}
+        except Exception as e:
+            latency_ms=int((time.time()-t0)*1000)
+            try:
+                st=sess.get(UniverseSyncState, 1)
+                if st is None:
+                    st=UniverseSyncState(id=1); sess.add(st)
+                st.last_latency_ms=latency_ms
+                st.error_count=(st.error_count or 0)+1
+                sess.commit()
+            except Exception: pass
+            return {"ok": False, "latency_ms": latency_ms, "error": str(e)}
+        finally:
+            try: sess.close()
+            except Exception: pass
+    def health(self):
+        s=self.get_state()
+        age_s=None
+        if s["last_cursor"]:
+            age_s=int((datetime.now(timezone.utc)-s["last_cursor"]).total_seconds())
+        return {"cursor": s["last_cursor"].isoformat() if s["last_cursor"] else None, "latency_ms": s["last_latency_ms"], "age_s": age_s, "run_count": s["run_count"]}
+    async def run_forever(self):
+        import asyncio
+        self._running=True
+        while self._running:
+            self.tick()
+            await asyncio.sleep(self.interval_s)
