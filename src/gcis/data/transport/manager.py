@@ -15,7 +15,7 @@ from gcis.data.transport.polling import polling_loop_should_run, poll_klines
 from gcis.data.transport.gap import detect_missing_intervals, backfill_missing
 from gcis.data.recorder.store import append_raw
 from gcis.persistence.db import get_session
-from gcis.persistence.models import Candle, EventOutbox, ProviderStatus, WorkerState, LatestQuote
+from gcis.persistence.models import Candle, EventOutbox, ProviderStatus, WorkerState, LatestQuote, SourceSwitchEvent, VenueStatus
 from gcis.data.archive.store import normalize_timestamp_to_us
 
 log = logging.getLogger(__name__)
@@ -324,6 +324,14 @@ class TransportManager:
         self.connections: List[WSConnection] = []
         self.last_poll = 0.0
         self.ws_state: str = "DISCONNECTED"
+        # Phase8: venue failover chain
+        self.venue_chain = cfg.get("universe", {}).get("venue_chain", ["binance_um", "bybit_linear", "okx_swap", "hyperliquid"])
+        try:
+            self.active_venue_idx = self.venue_chain.index(self.venue)
+        except ValueError:
+            self.active_venue_idx = 0
+        self.last_failover_at = 0.0
+        self.failover_count = 0
 
     def build_connections(self):
         self.connections = []
@@ -371,6 +379,52 @@ class TransportManager:
             "connections": [c.health() for c in self.connections],
             "last_poll": self.last_poll,
         }
+
+    def maybe_failover(self) -> bool:
+        """Phase8: if DISCONNECTED >30s, switch to next venue in chain, record SourceSwitchEvent, rebuild."""
+        if self.ws_state != "DISCONNECTED":
+            return False
+        if time.time() - self.last_failover_at < 30:
+            return False
+        if len(self.venue_chain) <= 1:
+            return False
+        prev = self.venue
+        self.active_venue_idx = (self.active_venue_idx + 1) % len(self.venue_chain)
+        new_venue = self.venue_chain[self.active_venue_idx]
+        if new_venue == prev:
+            return False
+        log.warning(f"Phase8 failover {prev} -> {new_venue} (ws DISCONNECTED)")
+        # Record SourceSwitchEvent + VenueStatus
+        try:
+            sess = get_session()
+            ev = SourceSwitchEvent(capability="CAP-live_quote", from_source=prev, to_source=new_venue, reason="transport_failover")
+            sess.add(ev)
+            # update VenueStatus
+            for v in self.venue_chain:
+                vs = sess.get(VenueStatus, v)
+                if vs is None:
+                    vs = VenueStatus(venue=v, status="UNKNOWN", active=False)
+                    sess.add(vs)
+                vs.active = (v == new_venue)
+                if v == new_venue:
+                    vs.status = "ACTIVE"
+                    vs.last_success = datetime.now(timezone.utc)
+                elif v == prev:
+                    vs.status = "FAILED"
+                    vs.last_failure = datetime.now(timezone.utc)
+            sess.commit()
+            sess.close()
+        except Exception as e:
+            log.debug(f"failover event failed {e}")
+        self.venue = new_venue
+        self.last_failover_at = time.time()
+        self.failover_count += 1
+        # rebuild connections for new venue
+        try:
+            self.build_connections()
+        except Exception as e:
+            log.debug(f"rebuild after failover failed {e}")
+        return True
 
     async def polling_tick(self):
         """Run polling fallback if needed"""
@@ -424,6 +478,11 @@ class TransportManager:
                 last_msg = max((c["last_msg_at"] or 0) for c in h["connections"])
                 if last_msg:
                     lag_ms = int((time.time() - last_msg)*1000)
+            # Phase8: try failover if needed before heartbeat
+            try:
+                self.maybe_failover()
+            except Exception:
+                pass
             update_worker_heartbeat("transport", os.getpid(), state=h["ws_state"], queue_depth=len(h["connections"]), lag_ms=lag_ms)
         except Exception as e:
             log.debug(f"heartbeat failed: {e}")
