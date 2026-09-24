@@ -221,6 +221,16 @@ class EventOutbox(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
 
+class PaperOrder(Base):
+    __tablename__ = "paper_orders"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    symbol: Mapped[str] = mapped_column(String)
+    side: Mapped[str] = mapped_column(String)
+    qty: Mapped[str] = mapped_column(String)
+    price: Mapped[str] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="FILLED_PAPER")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
 class UniverseSyncState(Base):
     __tablename__ = "universe_sync_state"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
