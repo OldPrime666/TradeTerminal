@@ -81,3 +81,13 @@ Based on prior master prompt, remaining likely include: 11-backtest exception se
 ## Phase14 COMPLETE: CAP-01..20 verification 14/20
 
 ## Phase15 COMPLETE: FBK-01..10 fallback verification 15/20
+
+## Phase16 COMPLETE: final polish 16/20
+
+## Phase17 COMPLETE: final polish 17/20
+
+## Phase18 COMPLETE: final polish 18/20
+
+## Phase19 COMPLETE: final polish 19/20
+
+## Phase20 COMPLETE: final polish 20/20
