@@ -322,3 +322,5 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+# Phase12: verification hardening no weakening, fail closed on fake data
