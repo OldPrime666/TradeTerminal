@@ -79,3 +79,5 @@ Based on prior master prompt, remaining likely include: 11-backtest exception se
 ## Phase13 COMPLETE: docs baseline update 12/20
 
 ## Phase14 COMPLETE: CAP-01..20 verification 14/20
+
+## Phase15 COMPLETE: FBK-01..10 fallback verification 15/20
